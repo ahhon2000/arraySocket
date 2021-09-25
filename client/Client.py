@@ -3,17 +3,27 @@ import time
 
 import socketio
 from . import ServerMessageArray, ClientMessageArray
-from core import ConcurSensitiveObjs
+from handyPyUtil.concur import ConcurSensitiveObjs
 
 SOCKET_REINIT_ON_FAILURE_SEC = 10
 
-class FlazhClient:
-    def __init__(self, uri="http://127.0.0.1:5490", **sock_kwarg):
+class Client:
+    def __init__(self,
+        uri = "http://127.0.0.1:5490",
+        user = '', authKey = '',
+        debug = False,
+        **sock_kwarg,
+    ):
         self.uri = uri
+        self.user = user
+        self.authKey = authKey
+        self.debug = debug
+
         self._evtStop = threading.Event()
         self.sock = None
+        self.sock_kwarg = sock_kwarg
 
-        self.lock = threading.RLock()
+        self.lock = lock = threading.RLock()
         self.concur = concur = ConcurSensitiveObjs(lock)
 
         with concur:
@@ -55,7 +65,7 @@ class FlazhClient:
         
 
     def _initSocket(self):
-        self.sock = sock = socketio.Client()
+        self.sock = sock = socketio.Client(**self.sock_kwarg)
 
         @sock.event
         def connect():
@@ -105,7 +115,7 @@ class FlazhClient:
             firstConnect = False
 
             try:
-                sock = self._initSocket(**sock_kwarg)
+                sock = self._initSocket()
                 sock.connect(self.uri)
                 sock.wait()
             except Exception as e:

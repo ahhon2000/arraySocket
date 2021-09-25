@@ -3,16 +3,17 @@ from handyPyUtil.concur import ConcurSensitiveObjs
 
 ACK_TIMEOUT_SEC = 10
 DFLT_SEC_TO_LIVE = 60
+RANDOM_REFS_LEN = 24
 
 class ClientMessageArray:
-    def __init__(self, fzhc, ms=()):
-        self.ref = genRandomStr()
+    def __init__(self, cli, ms=()):
+        self.ref = genRandomStr(RANDOM_REFS_LEN)
 
         ms = list(ms)
-        self.flazhClient = fzhc
+        self.cli = cli
 
-        if not fzhc.lock: raise Exception(f'flachClient lock is undefined')
-        self.concur = concur = ConcurSensitiveObjs(fzhc.lock)
+        if not cli.lock: raise Exception(f'flachClient lock is undefined')
+        self.concur = concur = ConcurSensitiveObjs(cli.lock)
 
         with concur:
             concur.messages = []
@@ -37,19 +38,19 @@ class ClientMessageArray:
         it, if necessary.
         """
 
-        fzhc = self.fzhc
+        cli = self.cli
         concur = self.concur
 
         with concur:
-            if self.sent: raise Exception('cannot add a message to an array that has already been sent')
+            if self.concur.sent: raise Exception('cannot add a message to an array that has already been sent')
 
             typ = m.get('type')
             if typ is None: raise Exception(f'a client message is missing the type attribute')
 
-            if typ not in fzhc.concur.MSG_TYPES_CLI: raise Exception(f'unsupported client message type: {typ}')
+            if typ not in cli.concur.MSG_TYPES_CLI: raise Exception(f'unsupported client message type: {typ}')
 
             m = dict(m)
-            m.clientMessageArray = self.ref
+            m['clientMessageArray'] = self.ref
 
             vsec = m.get('responseValidForSec')
             if vsec and vsec > concur.secToLive:
@@ -57,12 +58,12 @@ class ClientMessageArray:
 
             cb = m.get('callback')
             if cb:
-                cbk = genRandomStr()
+                cbk = genRandomStr(RANDOM_REFS_LEN)
                 concur.callbacks[cbk] = cb
                 m['callback'] = cbk
 
-            self.messages.push(m)
+            concur.messages.append(m)
 
     def onStatusChange(ack=False, data=None, timedOut=False, expired=False):
-        fzhc = self.fzhc
+        cli = self.cli
         # TODO complete
