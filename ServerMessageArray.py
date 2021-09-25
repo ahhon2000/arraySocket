@@ -1,6 +1,6 @@
 class ServerMessageArray:
     def __init__(self, fzhc, ms):
-        if(not isinstance(ms, list)) raise Exception('data received from the server is not an array')
+        if(not isinstance(ms, list)): raise Exception('data received from the server is not an array')
 
         self.flazhClient = fzhc
         self.messages = list(ms)

@@ -1,5 +1,5 @@
-from core.strings import genRandomStr
-from core import ConcurSensitiveObjs
+from handyPyUtil.strings import genRandomStr
+from handyPyUtil.concur import ConcurSensitiveObjs
 
 ACK_TIMEOUT_SEC = 10
 DFLT_SEC_TO_LIVE = 60
