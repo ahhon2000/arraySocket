@@ -11,23 +11,23 @@ from TestKit import TestKit
 
 port = 5492
 
-srv = Server()
 def trgSrv():
+    srv = Server()
     srv.run(port=port)
 
 cli = Client(f"http://127.0.0.1:{port}")
 def trgCli():
     cli.run()
 
-from threading import Thread
-thSrv = Thread(target=trgSrv)
-thSrv.start()
-print(f'debug')
+from multiprocessing import Process
+pSrv = Process(target=trgSrv)
+pSrv.start()
 
-thCli = Thread(target=trgCli)
-thCli.start()
+pSrv.kill()
 
 import time
-time.sleep(3)
-srv.stopEvent.set()
-cli.sock.emit('stop')
+time.sleep(2)
+
+from threading import Thread
+thCli = Thread(target=trgCli)
+thCli.start()

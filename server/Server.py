@@ -1,6 +1,5 @@
 import socketio
 from pathlib import Path
-import threading
 
 from . import ServerMessageArray
 from . import ClientMessageArray
@@ -12,8 +11,6 @@ class Server:
     def __init__(self, debug=False, allowCors=True, **sock_kwarg):
         if allowCors:
             sock_kwarg['cors_allowed_origins'] = '*'
-
-        self.stopEvent = threading.Event()
 
         self.debug = debug
         self.sock = sock = socketio.Server(**sock_kwarg)
@@ -30,14 +27,10 @@ class Server:
 
         @sock.event
         def connect(sid, environ):
-            print('connect ', sid)
+            print('connect ', sid)  # TODO replace with proper logging
 
         @sock.event
         def client_message_array(sid, data):
-            if self.stopEvent.isSet():
-                import eventlet
-                raise eventlet.StopServe()
-
             try:
                 cma = ClientMessageArray(self, sid, data)
                 cma.processMessages()
@@ -52,7 +45,7 @@ class Server:
 
         @sock.event
         def disconnect(sid):
-            print('disconnect ', sid)
+            print('disconnect ', sid)  # TODO replace with proper logging
 
     def run(self, method="eventlet", **kwarg):
         if method == "eventlet":
@@ -71,5 +64,7 @@ class Server:
             l = eventlet.listen(('127.0.0.1', DEFAULT_PORT))
         else:
             l = eventlet.listen(('127.0.0.1', port))
+
+        self._listener = l
 
         eventlet.wsgi.server(l, self.app)
