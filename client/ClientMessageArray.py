@@ -1,3 +1,5 @@
+from threading import Timer
+
 from handyPyUtil.strings import genRandomStr
 from handyPyUtil.concur import ConcurSensitiveObjs
 
@@ -64,6 +66,70 @@ class ClientMessageArray:
 
             concur.messages.append(m)
 
-    def onStatusChange(ack=False, data=None, timedOut=False, expired=False):
+    def onStatusChange(self,
+        ack=False, data=None, timedOut=False, expired=False
+    ):
         cli = self.cli
-        # TODO complete
+        concur = self.concur
+
+        if ack and timedOut: raise Exception(f'ack & timedOut cannot be used together')
+        if ack and expired: raise Exception(f'ack & expired cannot be used together')
+
+        with concur:
+            if ack:
+                concur.processedByServer = True
+                print('server has processed messages:', data)
+
+            if timedOut:
+                concur.timedOut = True
+                print('Warning: server acknowledgement timed out')
+
+            if expired:
+                concur.expired = True
+
+            if concur.timedOut or concur.expired or \
+                concur.processedByServer and not self.callbacksPending():
+
+                cli.discardCliMessageArray(self)
+
+    def callbacksPending(self):
+        concur = self.concur
+        ret = False
+        with concur:
+            ret = bool(concur.callbacks)
+
+        return ret
+
+    def send(self):
+        cli = self.cli
+        sock = cli.sock
+        concur = self.concur
+        ms = concur.messages
+
+        with concur:
+            if concur.sent: raise Exception('the client message array has already been sent')
+
+            if ms:
+                def cb(data):
+                    self.onStatusChange(ack=True, data=data)
+                sock.emit('client_message_array', ms, callback=cb)
+
+                def tf(cma):
+                    if not cma.concur.processedByServer:
+                        cma.onStatusChange(timedOut=True)
+                cli.timer(ACK_TIMEOUT_SEC, tf, args=(self,))
+
+            def tf(cma):
+                cma.onStatusChange(expired=True)
+            cli.timer(concur.secToLive, tf, args=(self,))
+
+            concur.sent = True
+            print(f'{ms} messages sent to the server')
+
+    def execCallback(self, cbk, m):
+        concur = self.concur
+        with concur:
+            cb = concur.callbacks.pop(cbk, None)
+            if not cb: raise Exception('the callback requested by the server is unavailable')
+            cb(m)
+            self.onStatusChange()

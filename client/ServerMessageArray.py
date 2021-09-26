@@ -1,8 +1,8 @@
 class ServerMessageArray:
-    def __init__(self, fzhc, ms):
+    def __init__(self, cli, ms):
         if(not isinstance(ms, list)): raise Exception('data received from the server is not an array')
 
-        self.flazhClient = fzhc
+        self.cli = cli
         self.messages = list(ms)
 
     def processMessages(self):
@@ -13,12 +13,12 @@ class ServerMessageArray:
     def processMessage1(self, m):
         if not isinstance(m, dict): raise Exception('server message not a dict')
 
-        fzhc = this.flazhClient
+        cli = self.cli
 
         typ = m.get('type')
 
-        with fzhc.concur:
-            if typ in fzhc.concur.MSG_TYPES_SRV: 
+        with cli.concur:
+            if typ in cli.concur.MSG_TYPES_SRV: 
                 print(f'warning: unsupported server message type: {typ}')
 
         handler = getattr(self, 'on_' + typ)
@@ -39,7 +39,7 @@ class ServerMessageArray:
         cma.execCallback(cbk, m)
 
     def on_auth(self, m):
-        fzhc = self.flazhClient
+        cli = self.cli
         st = m.get('status')
 
         if st is None:
@@ -49,9 +49,10 @@ class ServerMessageArray:
                 mts0 = m.get(k)
                 if mts0 is None: raise Exception('the server did not provide ' + k + ' on authentication')
 
-                fzhc.setMsgTypes(k, mts0)
+                cli.setMsgTypes(k, mts0)
         else:
-            descr = f': {m.descr}' if m.descr else ''
+            descr = m.get('descr', '')
+            descr = f': {descr}' if descr else ''
             raise Exception(f'authentication failed (status={st}){descr}');
 
     def on_error(self, m):

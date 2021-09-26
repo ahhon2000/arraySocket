@@ -2,32 +2,23 @@ import threading
 import time
 
 import socketio
-from . import ServerMessageArray, ClientMessageArray
-from handyPyUtil.concur import ConcurSensitiveObjs
+from BaseClientServer import BaseClientServer
 
 SOCKET_REINIT_ON_FAILURE_SEC = 10
 
-class StopClientExc(Exception): pass
-
-class Client:
+class Client(BaseClientServer):
     def __init__(self,
         uri = "http://127.0.0.1:5490",
         user = '', authKey = '',
-        debug = False,
-        **sock_kwarg,
+        **kwarg,
     ):
+        super().__init__(**kwarg)
+
         self.uri = uri
         self.user = user
         self.authKey = authKey
-        self.debug = debug
 
-        self._evtStop = threading.Event()
-        self.sock = None
-        self.sock_kwarg = sock_kwarg
-
-        self.lock = lock = threading.RLock()
-        self.concur = concur = ConcurSensitiveObjs(lock)
-
+        concur = self.concur
         with concur:
             concur.MSG_TYPES_CLI = ['auth']
             concur.MSG_TYPES_SRV = ['auth']
@@ -46,7 +37,7 @@ class Client:
 
     def newClientMessageArray(self):
         concur = self.concur
-        cma = ClientMessageArray(self)
+        cma = self.CMAClass(self)
         with concur:
             concur.clientMessageArrays[cma.ref] = cma
             concur.curCliMessageArray = cma
@@ -59,12 +50,10 @@ class Client:
         })
         self.sendMessages()
 
-    def onReconnect(self):
+    def onConnect(self):
         self.login()
 
     def onDisconnect(self):
-        if self._evtStop.isSet():
-            raise StopClientExc(f'The client has been ordered to stop. Stopping...')
         print('disconnected')
         
 
@@ -73,7 +62,7 @@ class Client:
 
         @sock.event
         def connect():
-            self.onReconnect()
+            self.onConnect()
 
         @sock.event
         def disconnect():
@@ -81,13 +70,13 @@ class Client:
 
         @sock.event
         def server_message_array(ms):
-            onServerMessageArray(ms)
+            self.onServerMessageArray(ms)
 
         return sock
 
     def onServerMessageArray(self, ms):
         try:
-            sma = ServerMessageArray(self, ms)
+            sma = self.SMAClass(self, ms)
             sma.processMessages()
         except Exception as e:
             print(f'error while processing messages: {e}')
@@ -96,7 +85,7 @@ class Client:
         concur = self.concur
         with concur:
             cmas = concur.clientMessageArrays
-            cmas.pop(cma.get('ref'), None)
+            cmas.pop(cma.ref, None)
 
     def pushMessage(self, m):
         concur = self.concur
@@ -114,7 +103,7 @@ class Client:
     def run(self):
         firstConnect = True
 
-        while not self._evtStop.isSet():
+        while not self.evtStop.isSet():
             time.sleep(0 if firstConnect else SOCKET_REINIT_ON_FAILURE_SEC)
             firstConnect = False
 
@@ -122,11 +111,5 @@ class Client:
                 sock = self._initSocket()
                 sock.connect(self.uri)
                 sock.wait()
-            except StopClientExc:
-                self._evtStop.set()
             except Exception as e:
                 print(f'socket error: {e};\nreinitialising the socket and reconnecting')
-
-    def stop(self):
-        self._evtStop.set()
-        self.sock.disconnect()

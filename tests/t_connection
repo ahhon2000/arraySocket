@@ -5,22 +5,36 @@ with open(R(next(filter(E,(p/'cfg.py' for p in l))))) as _:exec(_.read())
 inclPath()
 
 import time
+from threading import Thread, Event
 
-from client import Client
+import client
 from TestKitAS import TestKitAS, DFLT_TEST_PORT
 
 with TestKitAS() as tk:
-    tk.startServer()
+    srvProc = tk.startServer()
 
-    time.sleep(1)
+    authSuccess = Event()
+
+    class SMAClass(client.ServerMessageArray):
+        def on_auth(self, m):
+            super().on_auth(m)
+            print('auth success')
+            authSuccess.set()
+
+    class Cli(client.Client):
+        def onConnect(self):
+            super().onConnect()
+
     
-    cli = Client(f"http://127.0.0.1:{DFLT_TEST_PORT}")
+    cli = Cli(f"http://127.0.0.1:{DFLT_TEST_PORT}", SMAClass=SMAClass)
+
     def trgCli():
         cli.run()
-
-    from threading import Thread
+    time.sleep(1)
     thCli = Thread(target=trgCli)
     thCli.start()
 
-    time.sleep(2)
+    authSuccess.wait(2)
     cli.stop()
+    srvProc.join(1)
+    assert authSuccess.isSet()

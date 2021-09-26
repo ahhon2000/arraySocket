@@ -1,10 +1,8 @@
 from collections import namedtuple
 
-from .ServerMessageArray import ServerMessageArray, MSG_TYPES_SRV
-
-MSG_TYPES_CLI = ('admin', 'auth', 'draw')
-
 class ClientMessageArray:
+    MSG_TYPES_CLI = ('admin', 'auth', 'draw')
+
     def __init__(self, srv, sid, ms):
         self.sid = sid
         self.messages = list(ms)
@@ -19,7 +17,7 @@ class ClientMessageArray:
     def _newServerMessageArray(self):
         srv = self.srv
         sid = self.sid
-        self.serverMessageArray = ServerMessageArray(srv, sid)
+        self.serverMessageArray = srv.SMAClass(srv, sid)
 
     def processMessages(self):
         ms = self.messages
@@ -35,7 +33,7 @@ class ClientMessageArray:
     def _processMessage1(self, m):
         if not isinstance(m, dict): raise Exception('client message not a dictionary')
         typ = m.get('type')
-        if typ not in MSG_TYPES_CLI:
+        if typ not in self.MSG_TYPES_CLI:
             raise Exception(f'unsupported message type: {typ}')
 
         if not self.isAuthenticated  and  typ != 'auth':
@@ -49,6 +47,8 @@ class ClientMessageArray:
         pass
 
     def on_auth(self, m):
+        srv = self.srv
+
         self.user = u = str(m.get('user', ''))
         self.isAuthenticated = False
 
@@ -72,8 +72,8 @@ class ClientMessageArray:
             'type': 'auth',
             'status': s.status,
             'descr': s.descr,
-            'MSG_TYPES_CLI': MSG_TYPES_CLI,
-            'MSG_TYPES_SRV': MSG_TYPES_SRV,
+            'MSG_TYPES_CLI': srv.CMAClass.MSG_TYPES_CLI,
+            'MSG_TYPES_SRV': srv.SMAClass.MSG_TYPES_SRV,
         })
 
     def on_draw(self, m):

@@ -1,19 +1,19 @@
 import socketio
 from pathlib import Path
 
-from . import ServerMessageArray
-from . import ClientMessageArray
+from BaseClientServer import BaseClientServer
 
 DEFAULT_PORT = 5490
 DEFAULT_PORT2 = 5491
 
-class Server:
-    def __init__(self, debug=False, allowCors=True, **sock_kwarg):
-        if allowCors:
-            sock_kwarg['cors_allowed_origins'] = '*'
+class Server(BaseClientServer):
+    def __init__(self, allowCors=True, **kwarg):
+        super().__init__(isServer=True, **kwarg)
 
-        self.debug = debug
-        self.sock = sock = socketio.Server(**sock_kwarg)
+        if allowCors:
+            self.sock_kwarg['cors_allowed_origins'] = '*'
+
+        self.sock = sock = socketio.Server(**self.sock_kwarg)
         self._setupSocketHandlers()
 
         self.app = app = socketio.WSGIApp(sock,
@@ -32,14 +32,14 @@ class Server:
         @sock.event
         def client_message_array(sid, data):
             try:
-                cma = ClientMessageArray(self, sid, data)
+                cma = self.CMAClass(self, sid, data)
                 cma.processMessages()
             except Exception as e:
                 m = {
                     'type': 'error',
                     'descr': str(e),
                 }
-                sma = ServerMessageArray(self, sid, [m])
+                sma = self.SMAClass(self, sid, [m])
                 sma.send()
             return "ack"
 

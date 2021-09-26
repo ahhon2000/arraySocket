@@ -1,7 +1,8 @@
 
-MSG_TYPES_SRV = ('error', 'auth',)
 
 class ServerMessageArray:
+    MSG_TYPES_SRV = ('error', 'auth',)
+
     def __init__(self, fzhs, sid, messages=()):
         self.sid = sid
         self.flazhServer = fzhs
@@ -20,7 +21,7 @@ class ServerMessageArray:
         if not isinstance(m, dict): raise Exception('message not a dictionary')
 
         typ = m.get('type')
-        if typ not in MSG_TYPES_SRV:
+        if typ not in self.MSG_TYPES_SRV:
             raise Exception(f'unsupported message type: {typ}')
 
         self.messages.append(m)
