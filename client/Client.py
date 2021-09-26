@@ -7,6 +7,8 @@ from handyPyUtil.concur import ConcurSensitiveObjs
 
 SOCKET_REINIT_ON_FAILURE_SEC = 10
 
+class StopClientExc(Exception): pass
+
 class Client:
     def __init__(self,
         uri = "http://127.0.0.1:5490",
@@ -60,7 +62,9 @@ class Client:
     def onReconnect(self):
         self.login()
 
-    def onDisconnect():
+    def onDisconnect(self):
+        if self._evtStop.isSet():
+            raise StopClientExc(f'The client has been ordered to stop. Stopping...')
         print('disconnected')
         
 
@@ -118,8 +122,11 @@ class Client:
                 sock = self._initSocket()
                 sock.connect(self.uri)
                 sock.wait()
+            except StopClientExc:
+                self._evtStop.set()
             except Exception as e:
-                print(f'socket error: {e}')
+                print(f'socket error: {e};\nreinitialising the socket and reconnecting')
 
     def stop(self):
         self._evtStop.set()
+        self.sock.disconnect()

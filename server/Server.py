@@ -53,7 +53,9 @@ class Server:
         else: raise Exception(f"unsupported method of running the surver: {method}")
 
     def _runEventlet(self,
-        useUnixSocket=False, sockPath="", port=DEFAULT_PORT2,
+        addr="127.0.0.1", port=DEFAULT_PORT2,
+        useUnixSocket=False,
+        sockPath="",
     ):
         import eventlet
         l = None
@@ -61,9 +63,9 @@ class Server:
             sockPath = str(sockPath)
             l = eventlet.listen(sockPath, eventlet.wsgi.socket.AF_UNIX)
         elif self.debug:
-            l = eventlet.listen(('127.0.0.1', DEFAULT_PORT))
+            l = eventlet.listen((addr, DEFAULT_PORT))
         else:
-            l = eventlet.listen(('127.0.0.1', port))
+            l = eventlet.listen((addr, port))
 
         self._listener = l
 

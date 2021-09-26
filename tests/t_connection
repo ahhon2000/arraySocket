@@ -4,30 +4,23 @@ with open(R(next(filter(E,(p/'cfg.py' for p in l))))) as _:exec(_.read())
 
 inclPath()
 
-from client import Client
-from server import Server
-from TestKit import TestKit
-
-
-port = 5492
-
-def trgSrv():
-    srv = Server()
-    srv.run(port=port)
-
-cli = Client(f"http://127.0.0.1:{port}")
-def trgCli():
-    cli.run()
-
-from multiprocessing import Process
-pSrv = Process(target=trgSrv)
-pSrv.start()
-
-pSrv.kill()
-
 import time
-time.sleep(2)
 
-from threading import Thread
-thCli = Thread(target=trgCli)
-thCli.start()
+from client import Client
+from TestKitAS import TestKitAS, DFLT_TEST_PORT
+
+with TestKitAS() as tk:
+    tk.startServer()
+
+    time.sleep(1)
+    
+    cli = Client(f"http://127.0.0.1:{DFLT_TEST_PORT}")
+    def trgCli():
+        cli.run()
+
+    from threading import Thread
+    thCli = Thread(target=trgCli)
+    thCli.start()
+
+    time.sleep(2)
+    cli.stop()
