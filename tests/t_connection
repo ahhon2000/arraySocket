@@ -8,11 +8,10 @@ import time
 from threading import Thread, Event
 
 import client
-from TestKitAS import TestKitAS, DFLT_TEST_PORT
+from TestKitAS import TestKitAS
 
 with TestKitAS() as tk:
     srvProc = tk.startServer()
-
     authExchange = Event()
 
     class SMAClass(client.ServerMessageArray):
@@ -20,12 +19,8 @@ with TestKitAS() as tk:
             authExchange.set()
             super().on_auth(m)
 
-    class Cli(client.Client):
-        def onConnect(self):
-            super().onConnect()
-
     time.sleep(0.1)
-    cli = Cli(f"http://127.0.0.1:{DFLT_TEST_PORT}", SMAClass=SMAClass)
+    cli = client.Client(tk.getUri(), SMAClass=SMAClass)
 
     def trgCli():
         cli.run()
