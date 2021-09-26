@@ -46,7 +46,7 @@ class ClientMessageArray:
     def on_admin(self, m):
         pass
 
-    def on_auth(self, m):
+    def on_auth(self, m, authEveryone=False):
         srv = self.srv
 
         self.user = u = str(m.get('user', ''))
@@ -55,7 +55,10 @@ class ClientMessageArray:
         S = namedtuple('S', ('status', 'descr'))
         s = S(127, 'unknown authentication error')
 
-        if not u:
+        if authEveryone:  # for tests
+            self.isAuthenticated = True
+            s = S(0, 'success')
+        elif not u:
             s = S(1, 'no user')
         else:
             authKey = str(m.get('authKey', ''))

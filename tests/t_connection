@@ -7,20 +7,24 @@ inclPath()
 import time
 from threading import Thread, Event
 
-import client
+import client, server
 from TestKitAS import TestKitAS
 
 with TestKitAS() as tk:
-    srvProc = tk.startServer()
-    authExchange = Event()
+    class CMAClass_srv(server.ClientMessageArray):
+        def on_auth(self, m):
+            super().on_auth(m, authEveryone=True)
 
-    class SMAClass(client.ServerMessageArray):
+    class SMAClass_cli(client.ServerMessageArray):
         def on_auth(self, m):
             authExchange.set()
             super().on_auth(m)
 
+    srvProc = tk.startServer(CMAClass = CMAClass_srv)
+    authExchange = Event()
+
     time.sleep(0.1)
-    cli = client.Client(tk.getUri(), SMAClass=SMAClass)
+    cli = client.Client(tk.getUri(), SMAClass=SMAClass_cli)
 
     def trgCli():
         cli.run()
