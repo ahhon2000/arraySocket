@@ -24,12 +24,7 @@ with TestKitAS() as tk:
     authExchange = Event()
 
     time.sleep(0.1)
-    cli = client.Client(tk.getUri(), SMAClass=SMAClass_cli)
-
-    def trgCli():
-        cli.run()
-    thCli = Thread(target=trgCli)
-    thCli.start()
+    cli, thCli = tk.startClient(SMAClass=SMAClass_cli)
 
     authExchange.wait(0.1)
     cli.stop()

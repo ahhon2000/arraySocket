@@ -56,7 +56,7 @@ class Client(BaseClientServer):
         self.login()
 
     def onDisconnect(self):
-        print('disconnected')
+        self.logger.info('disconnected')
         
 
     def _initSocket(self):
@@ -81,7 +81,7 @@ class Client(BaseClientServer):
             sma = self.SMAClass(self, ms)
             sma.processMessages()
         except Exception as e:
-            print(f'error while processing messages: {e}')
+            self.logger.error(f'an error occurred while processing messages: {e}')
 
     def discardCliMessageArray(self, cma):
         concur = self.concur
@@ -114,4 +114,4 @@ class Client(BaseClientServer):
                 sock.connect(self.uri)
                 sock.wait()
             except Exception as e:
-                print(f'socket error: {e};\nreinitialising the socket and reconnecting')
+                self.logger.error(f'socket error: {e};\nreinitialising the socket and reconnecting')

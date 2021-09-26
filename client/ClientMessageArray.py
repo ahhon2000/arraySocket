@@ -9,6 +9,7 @@ RANDOM_REFS_LEN = 24
 
 class ClientMessageArray:
     def __init__(self, cli, ms=()):
+        self.logger = cli.logger
         self.ref = genRandomStr(RANDOM_REFS_LEN)
 
         ms = list(ms)
@@ -78,11 +79,11 @@ class ClientMessageArray:
         with concur:
             if ack:
                 concur.processedByServer = True
-                print('server has processed messages:', data)
+                self.logger.debug('server has processed messages:', data)
 
             if timedOut:
                 concur.timedOut = True
-                print('Warning: server acknowledgement timed out')
+                self.logger.warning('server acknowledgement timed out')
 
             if expired:
                 concur.expired = True
@@ -124,7 +125,7 @@ class ClientMessageArray:
             cli.timer(concur.secToLive, tf, args=(self,))
 
             concur.sent = True
-            print(f'{len(ms)} messages sent to the server')
+            self.logger.debug(f'{len(ms)} messages sent to the server')
 
     def execCallback(self, cbk, m):
         concur = self.concur

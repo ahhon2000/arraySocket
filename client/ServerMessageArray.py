@@ -19,7 +19,7 @@ class ServerMessageArray:
 
         with cli.concur:
             if typ not in cli.concur.MSG_TYPES_SRV: 
-                print(f'warning: unsupported server message type: {typ}')
+                self.logger.warning(f'unsupported server message type: {typ}')
 
         handler = getattr(self, 'on_' + typ)
         if not handler: raise Exception(f'no handler for server message type {typ}')
@@ -57,4 +57,4 @@ class ServerMessageArray:
 
     def on_error(self, m):
         descr = m.get('descr', '')
-        print(f'server error: {descr}')
+        self.logger.error(f'server error: {descr}')

@@ -1,5 +1,9 @@
 import threading
+import logging
+from pathlib import Path
+import sys
 
+from handyPyUtil.loggers import addStdLogger
 from handyPyUtil.concur import ConcurSensitiveObjs
 
 class BaseClientServer:
@@ -8,8 +12,10 @@ class BaseClientServer:
         sock_kwarg = None,
         isServer = False,
         CMAClass = None, SMAClass = None,
+        logger = None,
     ):
         self.debug = debug
+        addStdLogger(self, default=logger, debug=debug)
 
         if not sock_kwarg: sock_kwarg = {}
         self.sock_kwarg = sock_kwarg
