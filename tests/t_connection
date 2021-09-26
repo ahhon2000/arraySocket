@@ -14,7 +14,6 @@ with TestKitAS() as tk:
     srvProc = tk.startServer()
 
     authExchange = Event()
-    connected = Event()
 
     class SMAClass(client.ServerMessageArray):
         def on_auth(self, m):
@@ -24,7 +23,6 @@ with TestKitAS() as tk:
     class Cli(client.Client):
         def onConnect(self):
             super().onConnect()
-            connected.set()
 
     time.sleep(0.1)
     cli = Cli(f"http://127.0.0.1:{DFLT_TEST_PORT}", SMAClass=SMAClass)
@@ -34,8 +32,7 @@ with TestKitAS() as tk:
     thCli = Thread(target=trgCli)
     thCli.start()
 
-    connected.wait(3)
-    authExchange.wait(3)
+    authExchange.wait(0.1)
     cli.stop()
-    #srvProc.join(1)
+
     assert authExchange.isSet()
