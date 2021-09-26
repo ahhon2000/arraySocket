@@ -18,7 +18,7 @@ class ServerMessageArray:
         typ = m.get('type')
 
         with cli.concur:
-            if typ in cli.concur.MSG_TYPES_SRV: 
+            if typ not in cli.concur.MSG_TYPES_SRV: 
                 print(f'warning: unsupported server message type: {typ}')
 
         handler = getattr(self, 'on_' + typ)

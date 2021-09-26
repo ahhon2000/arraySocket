@@ -124,7 +124,7 @@ class ClientMessageArray:
             cli.timer(concur.secToLive, tf, args=(self,))
 
             concur.sent = True
-            print(f'{ms} messages sent to the server')
+            print(f'{len(ms)} messages sent to the server')
 
     def execCallback(self, cbk, m):
         concur = self.concur

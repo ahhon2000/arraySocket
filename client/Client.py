@@ -4,16 +4,18 @@ import time
 import socketio
 from BaseClientServer import BaseClientServer
 
-SOCKET_REINIT_ON_FAILURE_SEC = 10
+DFLT_SOCK_REINIT_ON_FAILURE_SEC = 10
 
 class Client(BaseClientServer):
     def __init__(self,
         uri = "http://127.0.0.1:5490",
         user = '', authKey = '',
+        sockReinitSec = DFLT_SOCK_REINIT_ON_FAILURE_SEC,
         **kwarg,
     ):
         super().__init__(**kwarg)
 
+        self.sockReinitSec = sockReinitSec
         self.uri = uri
         self.user = user
         self.authKey = authKey
@@ -104,7 +106,7 @@ class Client(BaseClientServer):
         firstConnect = True
 
         while not self.evtStop.isSet():
-            time.sleep(0 if firstConnect else SOCKET_REINIT_ON_FAILURE_SEC)
+            time.sleep(0 if firstConnect else self.sockReinitSec)
             firstConnect = False
 
             try:
