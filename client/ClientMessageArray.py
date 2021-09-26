@@ -79,7 +79,7 @@ class ClientMessageArray:
         with concur:
             if ack:
                 concur.processedByServer = True
-                self.logger.debug('server has processed messages:', data)
+                self.logger.debug(f'server has processed messages: {data}')
 
             if timedOut:
                 concur.timedOut = True
