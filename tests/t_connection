@@ -1,6 +1,7 @@
 #!/usr/bin/python3
-from pathlib import Path as P; E=P.exists;R=P.resolve; l=R(P(__file__)).parents
-with open(R(next(filter(E,(p/'cfg.py' for p in l))))) as _:exec(_.read())
+try: from pathlib import Path as P; R = P.resolve; E = P.exists; \
+    L = lambda p: p / 'cfg.py'; F = R(P(__file__)); import handyPyUtil
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
 inclPath()
 
