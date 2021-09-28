@@ -77,9 +77,9 @@ class ClientMessageArray:
         sma = self.serverMessageArray
         sma.pushErrorMessage(descr)
 
-    def pushMessage(self, m):
+    def pushMessage(self, m, **kwarg):
         sma = self.serverMessageArray
-        sma.pushMessage(m)
+        sma.pushMessage(m, **kwarg)
 
     def sendMessages(self):
         sma = self.serverMessageArray

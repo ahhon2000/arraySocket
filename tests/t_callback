@@ -37,9 +37,7 @@ def doTest(case):
             def on_test(self, m):
                 self.pushMessage({
                     'type': 'test',
-                    'callback': m['callback'],
-                    'clientMessageArray': m['clientMessageArray'],
-                })
+                }, cbFromCliMsg=m)
 
         class SMAClass_cli(client.ServerMessageArray):
             def on_auth(self, m):
