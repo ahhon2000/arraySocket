@@ -91,6 +91,8 @@ class Server(BaseClientServer):
     def checkUserCredentials(self, name, authKey):
         """Check if a user may access the server
 
+        NOTE: for custom user lookups (e. g. in a DB) override lookupUser()
+
         Return a named tuple (status, descr, user)
 
         status is 0 iff access is granted
@@ -101,18 +103,26 @@ class Server(BaseClientServer):
         S = UserAuthStatus
         s = S(127, 'unknown authentication error', None)
 
+        u = self.staticUsers.get(name)
+        if not u:
+            u = self.lookupUser(name)
+
         if self.authEveryone:  # for tests
-            s = S(0, 'success', None)
+            s = S(0, 'success', u)
         elif not name:
-            s = S(1, 'no user', None)
+            s = S(1, 'no user', u)
         else:
             if not authKey:
-                s = S(2, 'no authentication key', None)
+                s = S(2, 'no authentication key', u)
             else:
-                s = S(3, 'wrong credentials', None)
-                u = self.staticUsers.get(name)
+                s = S(3, 'wrong credentials', u)
                 if u:
                     if name == u.name  and  authKey == u.authKey:
                         s = S(0, 'success', u)
 
         return s
+
+    def lookupUser(self, name):
+        "Override this method for custom user lookups. Should return an ASUser"
+
+        return None
