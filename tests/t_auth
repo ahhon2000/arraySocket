@@ -25,7 +25,12 @@ def doTest(case):
                 authComplete.set()
 
         srvProc = tk.startServer(
-            staticUsers = [ASUser(name=case['name'], authKey=case['authKey'])],
+            staticUsers = [
+                ASUser(
+                    name = case.get('name', ''),
+                    authKey = case.get('authKey', ''),
+                ),
+            ],
         )
         time.sleep(0.1)
 
@@ -49,13 +54,12 @@ def doTest(case):
 
 cases = [
     {
-#        'name': 'test_user',
-#        'mustFail': True,
-#    }, {
-#        'name': 'test_user', 'authKey': '',
-#        'mustFail': True,
-#    }, {
-# TODO uncomment the other taste cases
+        'name': 'test_user',
+        'mustFail': True,
+    }, {
+        'name': 'test_user', 'authKey': '',
+        'mustFail': True,
+    }, {
         'name': 'test_user', 'authKey': '1234',
         'mustFail': False,
     },
