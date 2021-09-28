@@ -1,5 +1,7 @@
 from collections import namedtuple
 
+UserAuthStatus = namedtuple('UserAuthStatus', ('status', 'descr'))
+
 class ServerMessageArray:
     def __init__(self, cli, ms):
         self.logger = cli.logger
@@ -43,9 +45,15 @@ class ServerMessageArray:
         cma.execCallback(cbk, m)
 
     def on_auth(self, m):
+        """Process an auth-type message
+
+        Return a named tuple (status, descr) where status is the authentication
+        status returned by the server and descr is that status's description
+        """
+
         cli = self.cli
 
-        S = namedtuple('UserAuthStatus', ('status', 'descr'))
+        S = UserAuthStatus
         s = S(m.get('status'), m.get('descr', ''))
 
         if s.status is None:

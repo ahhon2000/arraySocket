@@ -7,6 +7,8 @@ from BaseClientServer import BaseClientServer
 DEFAULT_PORT = 5490
 DEFAULT_PORT2 = 5491
 
+UserAuthStatus = namedtuple('UserAuthStatus', ('status', 'descr', 'user'))
+
 class Server(BaseClientServer):
     def __init__(self,
         staticUsers=(),
@@ -96,7 +98,7 @@ class Server(BaseClientServer):
         user is the user object
         """
 
-        S = namedtuple('UserAuthStatus', ('status', 'descr', 'user'))
+        S = UserAuthStatus
         s = S(127, 'unknown authentication error', None)
 
         if self.authEveryone:  # for tests
