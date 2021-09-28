@@ -1,0 +1,70 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import inclPath
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+
+inclPath()
+
+import time
+from threading import Thread, Event
+
+import client, server
+from TestKitAS import TestKitAS
+from ASUser import ASUser
+
+def onAuth(cli, case, success):
+    def callback(m):
+        assert isinstance(m, dict)
+        success.set()
+
+    cli.pushMessage({
+        'type': 'test',
+        'callback': callback,
+    })
+    cli.sendMessages()
+
+def doTest(case):
+    u = ASUser(name='john', authKey='secret')
+
+    with TestKitAS() as tk:
+        success = Event()
+
+        class SMAClass_srv(server.ServerMessageArray):
+            MSG_TYPES_SRV = list(server.ServerMessageArray.MSG_TYPES_SRV) + ['test']
+        class CMAClass_srv(server.ClientMessageArray):
+            MSG_TYPES_CLI = list(server.ClientMessageArray.MSG_TYPES_CLI) + ['test']
+            def on_test(self, m):
+                self.pushMessage({
+                    'type': 'test',
+                    'callback': m['callback'],
+                    'clientMessageArray': m['clientMessageArray'],
+                })
+
+        class SMAClass_cli(client.ServerMessageArray):
+            def on_auth(self, m):
+                s = super().on_auth(m)
+                assert s.status == 0
+
+                onAuth(self.cli, case, success)
+            def on_test(self, m): pass
+
+        srvProc = tk.startServer(
+            SMAClass=SMAClass_srv,
+            CMAClass=CMAClass_srv,
+            staticUsers=[u],
+            authUsersInMem = True,
+        )
+        time.sleep(0.1)
+
+        cli, thCli = tk.startClient(SMAClass=SMAClass_cli, user=u)
+
+        success.wait(0.1)
+        assert success.isSet()
+
+cases = [
+    {
+    },
+]
+
+for case in cases: doTest(case)

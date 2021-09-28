@@ -1,6 +1,6 @@
 from handyPyUtil.loggers import fmtExc
 class ClientMessageArray:
-    MSG_TYPES_CLI = ('admin', 'auth', 'draw')
+    MSG_TYPES_CLI = ('admin', 'auth',)
 
     def __init__(self, srv, sid, ms):
         self.logger = srv.logger
@@ -12,8 +12,8 @@ class ClientMessageArray:
         self.serverMessageArray = None
         self._newServerMessageArray()
 
-        self.user = None
-        self.isAuthenticated = False
+        self.user = u = srv.lookupAuthUser(sid)
+        self.isAuthenticated = True if u else False
 
     def _newServerMessageArray(self):
         srv = self.srv
@@ -44,6 +44,7 @@ class ClientMessageArray:
 
         h = getattr(self, 'on_' + typ, None)
         if not h: raise Exception(f'no handler for message type={typ}')
+        self.logger.debug(f'processing client message type={typ}')
         h(m)
 
     def on_admin(self, m):
@@ -57,7 +58,9 @@ class ClientMessageArray:
 
         s = srv.checkUserCredentials(name, authKey)
         self.user = s.user
-        self.isAuthenticated = bool(s.status == 0)
+        if s.status == 0:
+            self.isAuthenticated = True
+            srv.saveAuthUser(self.sid, s.user)
 
         self.pushMessage({
             'type': 'auth',

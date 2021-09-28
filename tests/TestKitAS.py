@@ -4,6 +4,8 @@ from handyPyUtil.tests import TestKit
 from server import Server
 from client import Client
 
+from ASUser import ASUser
+
 DFLT_TEST_ADDR = f"127.0.0.1"
 DFLT_TEST_PORT = 5492
 
@@ -17,6 +19,9 @@ class TestKitAS(TestKit):
         self.port = port
         self.CMAClass = CMAClass
         self.SMAClass = SMAClass
+
+        self.activeClients = []  # each element is a tuple (thread, client)
+
         super().__init__(**kwarg)
 
     def startServer(self,
@@ -44,13 +49,24 @@ class TestKitAS(TestKit):
     def startClient(self,
         addr = None, port = None,
         thread_kwarg = {},
+        user = None,  # can be a username or an ASUser object
         **cliKwarg
     ):
-        "Initialise and start a client in a new thread; return cli, thread"
+        """Initialise and start a client in a new thread; return cli, thread
+
+        All clients started with this method will be automatically
+        stopped when the `with' clause is done.
+        """
 
         addr = addr if addr else self.addr
         port = port if port else self.port
         uri = f"http://{addr}:{port}"
+
+        if user:
+            if isinstance(user, ASUser):
+                cliKwarg.update({'user': user.name, 'authKey': user.authKey})
+            else: cliKwarg['user'] = user
+
         cli = Client(uri, logger=self.logger, **cliKwarg)
 
         def trgCli():
@@ -58,7 +74,21 @@ class TestKitAS(TestKit):
         thCli = Thread(target=trgCli, **thread_kwarg)
         thCli.start()
 
+        self.activeClients.append((thCli, cli))
+
         return cli, thCli
 
     def getUri(self):
         return f"http://{self.addr}:{self.port}"
+
+    def cleanup(self, **kwarg):
+        self._cleanupClients()
+        super().cleanup()
+
+    def _cleanupClients(self):
+        acs = self.activeClients
+
+        for thCli, cli in acs:
+            cli.stop()
+
+        acs.clear()

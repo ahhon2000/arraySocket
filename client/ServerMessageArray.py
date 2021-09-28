@@ -27,19 +27,20 @@ class ServerMessageArray:
             if typ not in cli.concur.MSG_TYPES_SRV: 
                 self.logger.warning(f'unsupported server message type: {typ}')
 
-        handler = getattr(self, 'on_' + typ)
+        handler = getattr(self, 'on_' + typ, None)
         if not handler: raise Exception(f'no handler for server message type {typ}')
         handler(m)
         self.execCallback(m)
 
     def execCallback(self, m):
+        cli = self.cli
         cbk = m.get('callback')
         if not cbk: return
 
         cmaRef = m.get('clientMessageArray', '')
         if not cmaRef: raise Exception(f'cannot execute the callback without a reference to the client message array')
 
-        cma = fzh.concur.clientMessageArrays.get(cmaRef, '')
+        cma = cli.concur.clientMessageArrays.get(cmaRef, '')
         if not cma: raise Exception(f'the callback requested by the server is unavailable (no client message array)')
 
         cma.execCallback(cbk, m)

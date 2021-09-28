@@ -11,9 +11,10 @@ UserAuthStatus = namedtuple('UserAuthStatus', ('status', 'descr', 'user'))
 
 class Server(BaseClientServer):
     def __init__(self,
-        staticUsers=(),
-        authEveryone=False,
-        allowCors=True,
+        staticUsers = (),
+        authEveryone = False,  # grants access to all users
+        allowCors = True,
+        authUsersInMem = False,
         **kwarg
     ):
         super().__init__(isServer=True, **kwarg)
@@ -25,12 +26,15 @@ class Server(BaseClientServer):
         self._setupSocketHandlers()
 
         # Generally, it's a bad idea to maintain a large table of users in
-        # memory. The attribute `staticUsers' is meant to consist of
-        # small number of embedded user (like admin), or for tests.
+        # memory. The attribute `staticUsers' is meant to consist of a
+        # small number of embedded users (like admin), or for tests.
         #
         # Each entry in staticUsers maps a user's name to an ASUser object.
         self.staticUsers = {u.name: u for u in staticUsers}
+        self._authUsers = {}  # format:  sid: ASUser
+
         self.authEveryone = authEveryone
+        self.authUsersInMem = authUsersInMem
 
         self.app = app = socketio.WSGIApp(sock,
             static_files = {
@@ -43,7 +47,7 @@ class Server(BaseClientServer):
 
         @sock.event
         def connect(sid, environ):
-            print('connect ', sid)  # TODO replace with proper logging
+            self.logger.info(f'a user connected, sid={sid}')
 
         @sock.event
         def client_message_array(sid, data):
@@ -61,7 +65,8 @@ class Server(BaseClientServer):
 
         @sock.event
         def disconnect(sid):
-            print('disconnect ', sid)  # TODO replace with proper logging
+            self.rmAuthUser(sid)
+            self.logger.info(f'user with sid={sid} disconnected')
 
     def run(self, method="eventlet", **kwarg):
         if method == "eventlet":
@@ -91,9 +96,10 @@ class Server(BaseClientServer):
     def checkUserCredentials(self, name, authKey):
         """Check if a user may access the server
 
-        NOTE: for custom user lookups (e. g. in a DB) override lookupUser()
+        NOTE: For custom user lookups (e. g. in a DB) override lookupUser()
+        instead of this function
 
-        Return a named tuple (status, descr, user)
+        Return value: a named tuple (status, descr, user)
 
         status is 0 iff access is granted
         descr is a short description of the status.
@@ -126,3 +132,34 @@ class Server(BaseClientServer):
         "Override this method for custom user lookups. Should return an ASUser"
 
         return None
+
+    def saveAuthUser(self, sid, u):
+        """Save a sid-user association to an internal table (or elsewhere)
+
+        This method is called once the user has been successfully authenticated
+        to authorise further message arrays from the same socket.
+
+        The sid-user pair will be stored in memory only if the
+        authUsersInMem setting is True.
+
+        For a custom way of handling sid-user pairs (say, with a DB),
+        override this method.
+        """
+
+        if self.authUsersInMem:
+            self._authUsers[sid] = u
+
+    def lookupAuthUser(self, sid):
+        """Search the (internal) table for an authenticated user by their sid
+
+        Override if a different mechanism of storing sid-user pairs is used.
+        """
+
+        u = None
+        if self.authUsersInMem:
+            u = self._authUsers.get(sid)
+
+        return u
+
+    def rmAuthUser(self, sid):
+        self._authUsers.pop(sid, None)

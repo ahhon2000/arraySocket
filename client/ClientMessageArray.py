@@ -28,7 +28,7 @@ class ClientMessageArray:
             concur.callbacks = {}
 
             for m in ms:
-                self.pushMessages(m)
+                self.pushMessage(m)
 
     def pushMessage(self, m):
         """If m.responseValidForSec is given
@@ -64,6 +64,7 @@ class ClientMessageArray:
                 cbk = genRandomStr(RANDOM_REFS_LEN)
                 concur.callbacks[cbk] = cb
                 m['callback'] = cbk
+                self.logger.debug(f'added a callback to the client ClientMessageArray')
 
             concur.messages.append(m)
 
