@@ -1,9 +1,10 @@
-from collections import namedtuple
-
+from handyPyUtil.loggers import fmtExc
 class ClientMessageArray:
     MSG_TYPES_CLI = ('admin', 'auth', 'draw')
 
     def __init__(self, srv, sid, ms):
+        self.logger = srv.logger
+
         self.sid = sid
         self.messages = list(ms)
         self.srv = srv
@@ -20,13 +21,15 @@ class ClientMessageArray:
         self.serverMessageArray = srv.SMAClass(srv, sid)
 
     def processMessages(self):
+        srv = self.srv
         ms = self.messages
 
         for m in ms:
             try:
                 self._processMessage1(m)
             except Exception as e:
-                self.pushErrorMessage(str(e))
+                s = fmtExc(e, inclTraceback=srv.debug)
+                self.pushErrorMessage(s)
 
         self.sendMessages()
 
@@ -46,30 +49,15 @@ class ClientMessageArray:
     def on_admin(self, m):
         pass
 
-    def on_auth(self, m, authEveryone=False):
+    def on_auth(self, m):
         srv = self.srv
 
-        self.user = u = str(m.get('user', ''))
-        self.isAuthenticated = False
+        name, authKey = map(lambda k: m.get(k, ''), ('user', 'authKey'))
+        srv.logger.debug(f"received authentication request from user `{name}'; authKey length = {len(authKey)}")
 
-        S = namedtuple('S', ('status', 'descr'))
-        s = S(127, 'unknown authentication error')
-
-        if authEveryone:  # for tests
-            self.isAuthenticated = True
-            s = S(0, 'success')
-        elif not u:
-            s = S(1, 'no user')
-        else:
-            authKey = str(m.get('authKey', ''))
-            if not authKey:
-                s = S(2, 'no authentication key')
-            else:
-                if (u, authKey) != ('1', 'emmooj4PWRejlBD5X12IZau9XdErXj9P'):
-                    s = S(3, 'wrong credentials')
-                else:
-                    self.isAuthenticated = True
-                    s = S(0, 'success')
+        s = srv.checkUserCredentials(name, authKey)
+        self.user = s.user
+        self.isAuthenticated = bool(s.status == 0)
 
         self.pushMessage({
             'type': 'auth',

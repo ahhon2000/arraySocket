@@ -1,5 +1,9 @@
+from collections import namedtuple
+
 class ServerMessageArray:
     def __init__(self, cli, ms):
+        self.logger = cli.logger
+
         if(not isinstance(ms, list)): raise Exception('data received from the server is not an array')
 
         self.cli = cli
@@ -40,20 +44,22 @@ class ServerMessageArray:
 
     def on_auth(self, m):
         cli = self.cli
-        st = m.get('status')
 
-        if st is None:
+        S = namedtuple('UserAuthStatus', ('status', 'descr'))
+        s = S(m.get('status'), m.get('descr', ''))
+
+        if s.status is None:
             raise Exception('the server returned no authentication status');
-        elif st == 0:
+        elif s.status == 0:
             for k in ('MSG_TYPES_SRV', 'MSG_TYPES_CLI'):
                 mts0 = m.get(k)
                 if mts0 is None: raise Exception('the server did not provide ' + k + ' on authentication')
 
                 cli.setMsgTypes(k, mts0)
         else:
-            descr = m.get('descr', '')
-            descr = f': {descr}' if descr else ''
-            raise Exception(f'authentication failed (status={st}){descr}');
+            descr = f': {s.descr}' if s.descr else ''
+            self.logger.debug(f'authentication failed (status={s.status}){descr}')
+        return s
 
     def on_error(self, m):
         descr = m.get('descr', '')

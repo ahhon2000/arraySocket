@@ -1,3 +1,4 @@
+from collections import namedtuple
 import socketio
 from pathlib import Path
 
@@ -7,7 +8,12 @@ DEFAULT_PORT = 5490
 DEFAULT_PORT2 = 5491
 
 class Server(BaseClientServer):
-    def __init__(self, allowCors=True, **kwarg):
+    def __init__(self,
+        staticUsers=(),
+        authEveryone=False,
+        allowCors=True,
+        **kwarg
+    ):
         super().__init__(isServer=True, **kwarg)
 
         if allowCors:
@@ -15,6 +21,14 @@ class Server(BaseClientServer):
 
         self.sock = sock = socketio.Server(**self.sock_kwarg)
         self._setupSocketHandlers()
+
+        # Generally, it's a bad idea to maintain a large table of users in
+        # memory. The attribute `staticUsers' is meant to consist of
+        # small number of embedded user (like admin), or for tests.
+        #
+        # Each entry in staticUsers maps a user's name to an ASUser object.
+        self.staticUsers = {u.name: u for u in staticUsers}
+        self.authEveryone = authEveryone
 
         self.app = app = socketio.WSGIApp(sock,
             static_files = {
@@ -71,3 +85,32 @@ class Server(BaseClientServer):
         self._listener = l
 
         eventlet.wsgi.server(l, self.app)
+
+    def checkUserCredentials(self, name, authKey):
+        """Check if a user may access the server
+
+        Return a named tuple (status, descr, user)
+
+        status is 0 iff access is granted
+        descr is a short description of the status.
+        user is the user object
+        """
+
+        S = namedtuple('UserAuthStatus', ('status', 'descr', 'user'))
+        s = S(127, 'unknown authentication error', None)
+
+        if self.authEveryone:  # for tests
+            s = S(0, 'success', None)
+        elif not name:
+            s = S(1, 'no user', None)
+        else:
+            if not authKey:
+                s = S(2, 'no authentication key', None)
+            else:
+                s = S(3, 'wrong credentials', None)
+                u = self.staticUsers.get(name)
+                if u:
+                    if name == u.name  and  authKey == u.authKey:
+                        s = S(0, 'success', u)
+
+        return s

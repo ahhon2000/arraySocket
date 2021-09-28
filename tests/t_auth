@@ -1,0 +1,64 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import inclPath
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+
+inclPath()
+
+import time
+from threading import Thread, Event
+
+import client, server
+from TestKitAS import TestKitAS
+from ASUser import ASUser
+
+def doTest(case):
+    with TestKitAS() as tk:
+        authComplete, authSuccess = None, None
+        class SMAClass_cli(client.ServerMessageArray):
+            def on_auth(self, m):
+                s = super().on_auth(m)
+                if s.status == 0:
+                    authSuccess.set()
+
+                authComplete.set()
+
+        srvProc = tk.startServer(
+            staticUsers = [ASUser(name=case['name'], authKey=case['authKey'])],
+        )
+        time.sleep(0.1)
+
+        for u, k, mustFail in (
+            (
+                case.get('name', ''), case.get('authKey', ''),
+                case.get('mustFail', False),
+            ),
+            ('wrongUser', 'wrongKey', True),
+        ):
+            authComplete, authSuccess = Event(), Event()
+            cli, thCli = tk.startClient(SMAClass=SMAClass_cli,
+                user = u, authKey = k,
+            )
+
+            authComplete.wait(0.1)
+            failMsg = f"case: {case}"
+            if not mustFail: assert authSuccess.isSet(), failMsg
+            else: assert not authSuccess.isSet(), failMsg
+            cli.stop()
+
+cases = [
+    {
+#        'name': 'test_user',
+#        'mustFail': True,
+#    }, {
+#        'name': 'test_user', 'authKey': '',
+#        'mustFail': True,
+#    }, {
+# TODO uncomment the other taste cases
+        'name': 'test_user', 'authKey': '1234',
+        'mustFail': False,
+    },
+]
+
+for case in cases: doTest(case)
