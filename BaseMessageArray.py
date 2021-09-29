@@ -1,23 +1,21 @@
 from itertools import chain
 
 class BaseMessageArray:
-    SERVER_SIDE = False
+    MSG_TYPES = ('admin')
 
     @classmethod
     def cloneClass(Cls,
         setMsgTypes = None,
         addMsgTypes = None,
         rmMsgTypes = None,
-        serverSide = False,
     ):
         n = Cls.__name__
-        Clone = None
+        clsCnt = []
         exec(f"""
-class {n}({n}): pass
-Clone = {n}
+class {n}(Cls): pass
+clsCnt.append({n})
 """)
-
-        Clone.SERVER_SIDE = serverSide
+        Clone = clsCnt.pop()
 
         nMsgTypesOpts = sum(map(lambda x: int(x is not None), (
             setMsgTypes, addMsgTypes, rmMsgTypes)
@@ -26,13 +24,11 @@ Clone = {n}
         if nMsgTypesOpts == 0:
             pass
         elif nMsgTypesOpts == 1:
-            if not Clone.SERVER_SIDE: raise Exception("messages types are not class members in client-side message arrays, so can't change them")
-
-            mtsAttr = f'MSG_TYPES_SRV'
+            mtsAttr = f'MSG_TYPES'
             mts = None
             if setMsgTypes is not None:
                 mts = setMsgTypes
-            if addMsgTypes: is not None:
+            if addMsgTypes is not None:
                 mts = chain(getattr(Clone, mtsAttr, ()), addMsgTypes)
             if rmMsgTypes is not None:
                 rmSet = set(rmMsgTypes)

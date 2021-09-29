@@ -9,9 +9,9 @@ inclPath()
 import time
 from threading import Thread, Event
 
-import client, server
-from TestKitAS import TestKitAS
-from ASUser import ASUser
+from arraySocket import client, server
+from arraySocket.tests.TestKitAS import TestKitAS
+from arraySocket.ASUser import ASUser
 
 
 def sumCycle(cli, case, globState):
@@ -66,10 +66,13 @@ def doTest(case):
             'calculationsCompleted': calculationsCompleted,
         }
 
-        class SMAClass_srv(server.ServerMessageArray):
-            MSG_TYPES_SRV = list(server.ServerMessageArray.MSG_TYPES_SRV) + ['test']
-        class CMAClass_srv(server.ClientMessageArray):
-            MSG_TYPES_CLI = list(server.ClientMessageArray.MSG_TYPES_CLI) + ['test']
+        class SMAClass_srv(server.ServerMessageArray.cloneClass(
+            addMsgTypes = ['test']
+        )): pass
+
+        class CMAClass_srv(server.ClientMessageArray.cloneClass(
+            addMsgTypes = ['test']
+        )):
             def on_test(self, m):
                 self.pushMessage({
                     'type': 'test',
@@ -97,7 +100,7 @@ def doTest(case):
             cli, thCli = tk.startClient(SMAClass=SMAClass_cli, user=u)
             clis.append(cli)
 
-        calculationsCompleted.wait(1 + NClients * round(numbersPerClient / 100))
+        calculationsCompleted.wait(10 + NClients*round(numbersPerClient / 100))
         assert calculationsCompleted.isSet()
 
         trueTotal = NClients * sum(i for i in range(numbersPerClient))
@@ -111,10 +114,6 @@ cases = [
     },
     {
         'NClients': 10,
-        'numbersPerClient': 100,
-    },
-    {
-        'NClients': 50,
         'numbersPerClient': 100,
     },
 ]

@@ -1,10 +1,10 @@
 from threading import Thread
 
 from handyPyUtil.tests import TestKit
-from server import Server
-from client import Client
+from arraySocket.server import Server
+from arraySocket.client import Client
 
-from ASUser import ASUser
+from arraySocket import ASUser
 
 DFLT_TEST_ADDR = f"127.0.0.1"
 DFLT_TEST_PORT = 5492

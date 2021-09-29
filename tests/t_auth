@@ -3,17 +3,15 @@ try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
     L = lambda p: p / 'cfg.py'; from handyPyUtil import inclPath
 except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
-
+#from handyPyUtil.imports import importByPath
+#importByPath('..')
 inclPath()
 
 import time
 from threading import Thread, Event
 
-import __init__
-from ..__init__ import server, client
-
-from . import TestKitAS
-from .. import ASUser
+from arraySocket import client, ASUser
+from arraySocket.tests import TestKitAS
 
 def doTest(case):
     with TestKitAS() as tk:

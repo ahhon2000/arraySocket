@@ -5,7 +5,6 @@ from .. import BaseMessageArray
 class ClientMessageArray(
     BaseMessageArray.cloneClass(
         setMsgTypes = ('admin', 'auth',),
-        serverSide = True,
     )
 ):
     def __init__(self, srv, sid, ms):
@@ -42,7 +41,7 @@ class ClientMessageArray(
     def _processMessage1(self, m):
         if not isinstance(m, dict): raise Exception('client message not a dictionary')
         typ = m.get('type')
-        if typ not in self.MSG_TYPES_CLI:
+        if typ not in self.MSG_TYPES:
             raise Exception(f'unsupported message type: {typ}')
 
         if not self.isAuthenticated  and  typ != 'auth':
@@ -72,8 +71,8 @@ class ClientMessageArray(
             'type': 'auth',
             'status': s.status,
             'descr': s.descr,
-            'MSG_TYPES_CLI': srv.CMAClass.MSG_TYPES_CLI,
-            'MSG_TYPES_SRV': srv.SMAClass.MSG_TYPES_SRV,
+            'MSG_TYPES_CLI': srv.CMAClass.MSG_TYPES,
+            'MSG_TYPES_SRV': srv.SMAClass.MSG_TYPES,
         })
 
     def on_draw(self, m):

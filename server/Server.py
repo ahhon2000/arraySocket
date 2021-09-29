@@ -2,8 +2,9 @@ from collections import namedtuple
 import socketio
 from pathlib import Path
 
-from BaseClientServer import BaseClientServer
-from server.UsersTbl import UsersTbl
+from arraySocket import BaseClientServer
+import arraySocket.server
+from arraySocket.server.UsersTbl import UsersTbl
 
 DEFAULT_PORT = 5490
 DEFAULT_PORT2 = 5491

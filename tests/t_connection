@@ -9,8 +9,8 @@ inclPath()
 import time
 from threading import Thread, Event
 
-import client, server
-from TestKitAS import TestKitAS
+from arraySocket import client, server
+from arraySocket.tests.TestKitAS import TestKitAS
 
 with TestKitAS() as tk:
     class SMAClass_cli(client.ServerMessageArray):

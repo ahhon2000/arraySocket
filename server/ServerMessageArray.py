@@ -3,7 +3,6 @@ from .. import BaseMessageArray
 class ServerMessageArray(
     BaseMessageArray.cloneClass(
         setMsgTypes = ('error', 'auth',),
-        serverSide = True,
     )
 ):
     def __init__(self, srv, sid, messages=()):
@@ -35,7 +34,7 @@ class ServerMessageArray(
         if not isinstance(m, dict): raise Exception('message not a dictionary')
 
         typ = m.get('type')
-        if typ not in self.MSG_TYPES_SRV:
+        if typ not in self.MSG_TYPES:
             raise Exception(f'unsupported message type: {typ}')
 
         m = dict(m)

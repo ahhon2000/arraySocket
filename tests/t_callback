@@ -9,9 +9,9 @@ inclPath()
 import time
 from threading import Thread, Event
 
-import client, server
-from TestKitAS import TestKitAS
-from ASUser import ASUser
+from arraySocket import client, server
+from arraySocket import ASUser
+from arraySocket.tests import TestKitAS
 
 def onAuth(cli, case, success):
     def callback(m):
@@ -30,10 +30,13 @@ def doTest(case):
     with TestKitAS() as tk:
         success = Event()
 
-        class SMAClass_srv(server.ServerMessageArray):
-            MSG_TYPES_SRV = list(server.ServerMessageArray.MSG_TYPES_SRV) + ['test']
-        class CMAClass_srv(server.ClientMessageArray):
-            MSG_TYPES_CLI = list(server.ClientMessageArray.MSG_TYPES_CLI) + ['test']
+        SMAClass_srv = server.ServerMessageArray.cloneClass(
+            addMsgTypes = ('test',),
+        )
+
+        class CMAClass_srv(server.ClientMessageArray.cloneClass(
+            addMsgTypes = ('test',),
+        )):
             def on_test(self, m):
                 self.pushMessage({
                     'type': 'test',
