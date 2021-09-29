@@ -1,8 +1,10 @@
 from collections import namedtuple
 
+from .. import BaseMessageArray
+
 UserAuthStatus = namedtuple('UserAuthStatus', ('status', 'descr'))
 
-class ServerMessageArray:
+class ServerMessageArray(BaseMessageArray):
     def __init__(self, cli, ms):
         self.logger = cli.logger
 

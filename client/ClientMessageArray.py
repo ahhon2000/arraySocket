@@ -3,11 +3,13 @@ from threading import Timer
 from handyPyUtil.strings import genRandomStr
 from handyPyUtil.concur import ConcurSensitiveObjs
 
+from .. import BaseMessageArray
+
 ACK_TIMEOUT_SEC = 10
 DFLT_SEC_TO_LIVE = 60
 RANDOM_REFS_LEN = 24
 
-class ClientMessageArray:
+class ClientMessageArray(BaseMessageArray):
     def __init__(self, cli, ms=()):
         self.logger = cli.logger
         self.ref = genRandomStr(RANDOM_REFS_LEN)

@@ -1,7 +1,13 @@
 from handyPyUtil.loggers import fmtExc
-class ClientMessageArray:
-    MSG_TYPES_CLI = ('admin', 'auth',)
 
+from .. import BaseMessageArray
+
+class ClientMessageArray(
+    BaseMessageArray.cloneClass(
+        setMsgTypes = ('admin', 'auth',),
+        serverSide = True,
+    )
+):
     def __init__(self, srv, sid, ms):
         self.logger = srv.logger
 

@@ -9,9 +9,11 @@ inclPath()
 import time
 from threading import Thread, Event
 
-import client, server
-from TestKitAS import TestKitAS
-from ASUser import ASUser
+import __init__
+from ..__init__ import server, client
+
+from . import TestKitAS
+from .. import ASUser
 
 def doTest(case):
     with TestKitAS() as tk:

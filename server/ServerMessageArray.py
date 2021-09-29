@@ -1,8 +1,11 @@
+from .. import BaseMessageArray
 
-
-class ServerMessageArray:
-    MSG_TYPES_SRV = ('error', 'auth',)
-
+class ServerMessageArray(
+    BaseMessageArray.cloneClass(
+        setMsgTypes = ('error', 'auth',),
+        serverSide = True,
+    )
+):
     def __init__(self, srv, sid, messages=()):
         self.logger = srv.logger
 
