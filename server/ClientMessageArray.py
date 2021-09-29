@@ -12,7 +12,7 @@ class ClientMessageArray:
         self.serverMessageArray = None
         self._newServerMessageArray()
 
-        self.user = u = srv.lookupAuthUser(sid)
+        self.user = u = srv.usersTbl.lookupAuthUser(sid)
         self.isAuthenticated = True if u else False
 
     def _newServerMessageArray(self):
@@ -56,11 +56,11 @@ class ClientMessageArray:
         name, authKey = map(lambda k: m.get(k, ''), ('user', 'authKey'))
         srv.logger.debug(f"received authentication request from user `{name}'; authKey length = {len(authKey)}")
 
-        s = srv.checkUserCredentials(name, authKey)
+        s = srv.usersTbl.checkUserCredentials(name, authKey)
         self.user = s.user
         if s.status == 0:
             self.isAuthenticated = True
-            srv.saveAuthUser(self.sid, s.user)
+            srv.usersTbl.saveAuthUser(self.sid, s.user)
 
         self.pushMessage({
             'type': 'auth',
