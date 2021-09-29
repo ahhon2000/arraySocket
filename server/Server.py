@@ -26,7 +26,7 @@ class Server(BaseClientServer):
         self._setupSocketHandlers()
 
         if not usersTbl:
-            usersTbl = UsersTbl(self,
+            usersTbl = UsersTbl(
                 staticUsers = staticUsers,
                 authEveryone = authEveryone,
                 authUsersInMem = authUsersInMem,

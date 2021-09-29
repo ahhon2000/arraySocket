@@ -1,0 +1,122 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import inclPath
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+
+inclPath()
+
+import time
+from threading import Thread, Event
+
+import client, server
+from TestKitAS import TestKitAS
+from ASUser import ASUser
+
+
+def sumCycle(cli, case, globState):
+    def processResponse(m):
+        if cli.index <= cli.maxIndex:
+            cli.total = m['sum']
+            cli.index += 1
+
+            if cli.index > cli.maxIndex:
+                globState['workingClients'] -= 1
+                if globState['workingClients'] <= 0:
+                    globState['calculationsCompleted'].set()
+
+        sumCycle(cli, case, globState)
+
+    #time.sleep(0.01)
+    cli.pushMessage({
+        'type': 'test',
+        'addend1': cli.total,
+        'addend2': cli.index,
+        'callback': processResponse,
+    })
+    cli.sendMessages()
+
+def startCalculations(cli, case, globState):
+    N = case['numbersPerClient']
+
+    cli.total = 0
+    cli.index = 0
+    cli.maxIndex = N - 1
+
+    sumCycle(cli, case, globState)
+
+def initUsers(NClients):
+    us = []
+    for i in range(NClients):
+        u = ASUser(name=f'user{i}', authKey='secret{i}')
+        us.append(u)
+    usersTbl = server.UsersTbl(staticUsers=us, authUsersInMem=True)
+
+    return us, usersTbl
+
+def doTest(case):
+    with TestKitAS() as tk:
+        NClients = case['NClients']
+        numbersPerClient = case['numbersPerClient']
+        us, usersTbl = initUsers(NClients)
+        calculationsCompleted = Event()
+
+        globState = {
+            'workingClients': NClients,
+            'calculationsCompleted': calculationsCompleted,
+        }
+
+        class SMAClass_srv(server.ServerMessageArray):
+            MSG_TYPES_SRV = list(server.ServerMessageArray.MSG_TYPES_SRV) + ['test']
+        class CMAClass_srv(server.ClientMessageArray):
+            MSG_TYPES_CLI = list(server.ClientMessageArray.MSG_TYPES_CLI) + ['test']
+            def on_test(self, m):
+                self.pushMessage({
+                    'type': 'test',
+                    'sum': m['addend1'] + m['addend2']
+                }, cbFromCliMsg=m)
+
+        class SMAClass_cli(client.ServerMessageArray):
+            def on_auth(self, m):
+                s = super().on_auth(m)
+                assert s.status == 0
+
+                startCalculations(self.cli, case, globState)
+
+            def on_test(self, m): pass
+
+        srvProc = tk.startServer(
+            SMAClass=SMAClass_srv,
+            CMAClass=CMAClass_srv,
+            usersTbl = usersTbl,
+        )
+        time.sleep(0.1)
+
+        clis = []
+        for u in us:
+            cli, thCli = tk.startClient(SMAClass=SMAClass_cli, user=u)
+            clis.append(cli)
+
+        calculationsCompleted.wait(1 + NClients * round(numbersPerClient / 100))
+        assert calculationsCompleted.isSet()
+
+        trueTotal = NClients * sum(i for i in range(numbersPerClient))
+        total = sum(cli.total for cli in clis)
+        assert trueTotal == total, f"total={total}; trueTotal={trueTotal}\ncase = {case}"
+
+cases = [
+    {
+        'NClients': 1,
+        'numbersPerClient': 1,
+    },
+    {
+        'NClients': 10,
+        'numbersPerClient': 100,
+    },
+    {
+        'NClients': 50,
+        'numbersPerClient': 100,
+    },
+]
+
+for case in cases: doTest(case)

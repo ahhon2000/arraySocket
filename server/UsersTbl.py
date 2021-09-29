@@ -3,13 +3,11 @@ from collections import namedtuple
 UserAuthStatus = namedtuple('UserAuthStatus', ('status', 'descr', 'user'))
 
 class UsersTbl:
-    def __init__(self, srv,
+    def __init__(self,
         staticUsers = (),
         authEveryone = False,
         authUsersInMem = False,
     ):
-        self.srv = srv
-
         self.authUsersInMem = authUsersInMem
         self._authUsers = {}  # format:  sid: ASUser
 
