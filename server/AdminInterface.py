@@ -6,6 +6,7 @@ class AdminInterface(ClonableClass):
         'addAuthKey', 'rmAuthKey', 'rmAllAuthKeys',
         'logoutUser',
     )
+    EDITABLE_TUPLE_ATTRS = ('USERS_TBL_CMDS',)
 
     def __init__(self, srv=None):
         self.setSrv(srv)
@@ -57,12 +58,3 @@ class AdminInterface(ClonableClass):
             'descr': descr,
         })
         cma.pushMessage(srvMsg, cbFromCliMsg=m, ignoreMissingCallback=True)
-
-    @classmethod
-    def cloneClass(Cls,
-        *kwarg,
-    ):
-        eta = ('USERS_TBL_CMDS',)
-        Clone = super().cloneClass(editableTupleAttrs=eta, **kwarg)
-
-        return Clone
