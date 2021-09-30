@@ -3,14 +3,11 @@ try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
     L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
 except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
-
-inclPath()
-
 import time
 from threading import Thread, Event
 
 from arraySocket import client, server
-from arraySocket.tests.TestKitAS import TestKitAS
+from . import TestKitAS
 
 with TestKitAS() as tk:
     class SMAClass_cli(client.ServerMessageArray):

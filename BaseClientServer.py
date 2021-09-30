@@ -24,15 +24,15 @@ class BaseClientServer:
 
         if not CMAClass:
             if isServer:
-                from server import ClientMessageArray
+                from .server import ClientMessageArray
             else:
-                from client import ClientMessageArray
+                from .client import ClientMessageArray
             CMAClass = ClientMessageArray
         if not SMAClass:
             if isServer:
-                from server import ServerMessageArray
+                from .server import ServerMessageArray
             else:
-                from client import ServerMessageArray
+                from .client import ServerMessageArray
             SMAClass = ServerMessageArray
 
         self.CMAClass = CMAClass

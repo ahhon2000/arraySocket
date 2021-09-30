@@ -3,15 +3,11 @@ try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
     L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
 except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
-#from handyPyUtil.imports import importByPath
-#importByPath('..')
-inclPath()
-
 import time
 from threading import Thread, Event
 
 from arraySocket import client, ASUser
-from arraySocket.tests import TestKitAS
+from . import TestKitAS
 
 def doTest(case):
     with TestKitAS() as tk:

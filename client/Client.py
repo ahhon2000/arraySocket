@@ -2,7 +2,7 @@ import threading
 import time
 
 import socketio
-from arraySocket.BaseClientServer import BaseClientServer
+from ..BaseClientServer import BaseClientServer
 
 DFLT_SOCK_REINIT_ON_FAILURE_SEC = 10
 
