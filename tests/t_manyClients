@@ -63,11 +63,11 @@ def doTest(case):
         }
 
         class SMAClass_srv(server.ServerMessageArray.cloneClass(
-            addMsgTypes = ['test']
+            add_MSG_TYPES = ['test']
         )): pass
 
         class CMAClass_srv(server.ClientMessageArray.cloneClass(
-            addMsgTypes = ['test']
+            add_MSG_TYPES = ['test']
         )):
             def on_test(self, m):
                 self.pushMessage({

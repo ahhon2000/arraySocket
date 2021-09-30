@@ -27,7 +27,7 @@ class Server(BaseClientServer):
         if not adminInterface:
             from . import AdminInterface
             adminInterface = AdminInterface()
-        adminInterface.srv = self
+        adminInterface.setSrv(self)
         self.adminInterface = adminInterface
 
         self.sock = sock = socketio.Server(**self.sock_kwarg)

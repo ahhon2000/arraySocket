@@ -99,8 +99,21 @@ class UsersTbl:
 
         self._authUsers.pop(sid, None)
 
+    def logoutUser(self, name):
+        """Forget all sid's associated with a given user
+
+        Override if a different mechanism of storing sid-user pairs is used.
+        """
+
+        aus = self._authUsers
+        for sid, u in aus.items():
+            if u.name == name:
+                aus.pop(sid, None)
+
     def addAuthKey(self, name, authKey):
         """Add authKey to the keys of a users
+
+        If name doesn't match any user a new one will be added.
         """
 
         if not name: raise Exception(f'no user name given')

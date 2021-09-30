@@ -4,7 +4,7 @@ from .. import BaseMessageArray
 
 class ClientMessageArray(
     BaseMessageArray.cloneClass(
-        setMsgTypes = ('admin', 'auth',),
+        set_MSG_TYPES = ('admin', 'auth',),
     )
 ):
     def __init__(self, srv, sid, ms):

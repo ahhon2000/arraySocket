@@ -2,7 +2,7 @@ from .. import BaseMessageArray
 
 class ServerMessageArray(
     BaseMessageArray.cloneClass(
-        setMsgTypes = ('error', 'auth', 'admin'),
+        set_MSG_TYPES = ('error', 'auth', 'admin'),
     )
 ):
     def __init__(self, srv, sid, messages=()):
