@@ -15,12 +15,20 @@ class Server(BaseClientServer):
         authEveryone = False,  # grants access to all users
         authUsersInMem = False,
         allowCors = True,
+        adminInterface = None,
         **kwarg
     ):
         super().__init__(isServer=True, **kwarg)
 
         if allowCors:
             self.sock_kwarg['cors_allowed_origins'] = '*'
+
+        # configure the admin interface
+        if not adminInterface:
+            from . import AdminInterface
+            adminInterface = AdminInterface()
+        adminInterface.srv = self
+        self.adminInterface = adminInterface
 
         self.sock = sock = socketio.Server(**self.sock_kwarg)
         self._setupSocketHandlers()

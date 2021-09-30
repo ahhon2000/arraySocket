@@ -1,5 +1,7 @@
 from collections import namedtuple
 
+from .. import ASUser
+
 UserAuthStatus = namedtuple('UserAuthStatus', ('status', 'descr', 'user'))
 
 class UsersTbl:
@@ -51,7 +53,7 @@ class UsersTbl:
             else:
                 s = S(3, 'wrong credentials', u)
                 if u:
-                    if name == u.name  and  authKey == u.authKey:
+                    if name == u.name  and  authKey in u.authKeys:
                         s = S(0, 'success', u)
 
         return s
@@ -96,3 +98,38 @@ class UsersTbl:
         """
 
         self._authUsers.pop(sid, None)
+
+    def addAuthKey(self, name, authKey):
+        """Add authKey to the keys of a users
+        """
+
+        if not name: raise Exception(f'no user name given')
+        if not authKey: raise Exception(f'no authKey given')
+
+        sus = self.staticUsers
+
+        u = sus.get(name)
+        if not u:
+            u = ASUser(name=name)
+            sus[name] = u
+
+        u.authKeys.add(authKey)
+
+    def rmAuthKey(self, name, authKey):
+        """Remove authKey from a user's keys
+        """
+
+        sus = self.staticUsers
+        u = sus.get(name)
+        if u:
+            u.authKeys.discard(authKey)
+
+    def rmAllAuthKeys(self, name):
+        """Remove all keys a user currently has
+        """
+
+        sus = self.staticUsers
+        u = sus.get(name)
+        if u:
+            u.authKeys.clear()
+            sus.pop(name, None)

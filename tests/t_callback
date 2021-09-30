@@ -21,7 +21,7 @@ def onAuth(cli, case, success):
     cli.sendMessages()
 
 def doTest(case):
-    u = ASUser(name='john', authKey='secret')
+    u = ASUser(name='john', authKeys=('secret',))
 
     with TestKitAS() as tk:
         success = Event()

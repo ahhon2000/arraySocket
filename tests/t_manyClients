@@ -44,7 +44,7 @@ def startCalculations(cli, case, globState):
 def initUsers(NClients):
     us = []
     for i in range(NClients):
-        u = ASUser(name=f'user{i}', authKey='secret{i}')
+        u = ASUser(name=f'user{i}', authKeys=('secret{i}',))
         us.append(u)
     usersTbl = server.UsersTbl(staticUsers=us, authUsersInMem=True)
 

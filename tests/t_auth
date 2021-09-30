@@ -24,7 +24,7 @@ def doTest(case):
             staticUsers = [
                 ASUser(
                     name = case.get('name', ''),
-                    authKey = case.get('authKey', ''),
+                    authKeys = (case.get('authKey', ''),),
                 ),
             ],
         )

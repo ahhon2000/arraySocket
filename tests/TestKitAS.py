@@ -1,4 +1,5 @@
 from threading import Thread
+from more_itertools import first
 
 from handyPyUtil.tests import TestKit
 from ..server import Server
@@ -64,7 +65,10 @@ class TestKitAS(TestKit):
 
         if user:
             if isinstance(user, ASUser):
-                cliKwarg.update({'user': user.name, 'authKey': user.authKey})
+                cliKwarg.update({
+                    'user': user.name,
+                    'authKey': first(user.authKeys),
+                })
             else: cliKwarg['user'] = user
 
         cli = Client(uri, logger=self.logger, **cliKwarg)

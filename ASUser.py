@@ -1,5 +1,5 @@
 class ASUser:
-    def __init__(self, name='', authKey='', isAdmin=False):
+    def __init__(self, name='', authKeys=(), isAdmin=False):
         self.name = name
-        self.authKey = authKey
+        self.authKeys = set(authKeys)
         self.isAdmin = isAdmin

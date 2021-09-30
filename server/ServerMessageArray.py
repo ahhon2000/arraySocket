@@ -2,7 +2,7 @@ from .. import BaseMessageArray
 
 class ServerMessageArray(
     BaseMessageArray.cloneClass(
-        setMsgTypes = ('error', 'auth',),
+        setMsgTypes = ('error', 'auth', 'admin'),
     )
 ):
     def __init__(self, srv, sid, messages=()):
@@ -23,6 +23,7 @@ class ServerMessageArray(
 
     def pushMessage(self, m,
         cbFromCliMsg = None,
+        ignoreMissingCallback = False,
     ):
         """Add a server message to the array
 
@@ -42,12 +43,16 @@ class ServerMessageArray(
             cbk = cbFromCliMsg.get('callback')
             cmaRef = cbFromCliMsg.get('clientMessageArray')
 
-            if cbk and cmaRef:
-                m.update({
-                    'callback': cbk,
-                    'clientMessageArray': cmaRef,
-                })
-            else: raise Exception(f"could not determine the client's callback references")
+            if cbk:
+                if cmaRef:
+                    m.update({
+                        'callback': cbk,
+                        'clientMessageArray': cmaRef,
+                    })
+                else: raise Exception(f'the client has scheduled a callback but has not provided cmaRef')
+            else:
+                if not ignoreMissingCallback:
+                    raise Exception(f"could not determine the client's callback reference")
 
         self.messages.append(m)
 
