@@ -53,12 +53,13 @@ class ClientMessageArray(
         h(m)
 
     def on_admin(self, m):
+        srv = self.srv
         u = self.user
         if not self.isAuthenticated or not u:
             raise Exception(f'access to the admin interface denied: anonymous user')
         if not u.isAdmin: raise Exception(f'the user is not an admin')
 
-        self.adminInterface.processMessage(self, m)
+        srv.adminInterface.processMessage(self, m)
 
     def on_auth(self, m):
         srv = self.srv

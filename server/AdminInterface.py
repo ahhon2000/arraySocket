@@ -15,7 +15,7 @@ class AdminInterface(ClonableClass):
         self.srv = srv
         self.logger = srv.logger if srv else None
 
-    def processMessage(cma, m):
+    def processMessage(self, cma, m):
         srv = self.srv
 
         try:

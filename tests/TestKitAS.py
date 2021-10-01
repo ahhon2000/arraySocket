@@ -51,6 +51,7 @@ class TestKitAS(TestKit):
         addr = None, port = None,
         thread_kwarg = {},
         user = None,  # can be a username or an ASUser object
+        debug = True,
         **cliKwarg
     ):
         """Initialise and start a client in a new thread; return cli, thread
@@ -68,6 +69,7 @@ class TestKitAS(TestKit):
                 cliKwarg.update({
                     'user': user.name,
                     'authKey': first(user.authKeys),
+                    'debug': debug,
                 })
             else: cliKwarg['user'] = user
 

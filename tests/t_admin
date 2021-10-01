@@ -1,0 +1,150 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+import time
+from threading import Thread, Event, Condition
+from itertools import chain
+
+from arraySocket import client, server, ASUser
+from . import TestKitAS
+
+
+def onAuthKeyReg(cli, gl):
+    cli.login()
+
+def registerAuthKey(gl, n):
+    gl['adminLoggedIn'].wait(timeout=0.1)
+
+    cliDicts = gl['cliDicts']
+    cli = cliDicts[n]['cli']
+    assert n == cli.user
+    k = cli.authKey
+
+    def onResponse(m):
+        assert m.get('status', 63) == 0
+        onAuthKeyReg(cli, gl)
+
+    admCli = cliDicts['admin']['cli']
+    admCli.pushMessage({
+        'type': 'admin',
+        'command': 'addAuthKey',
+        'user': n,
+        'authKey': k,
+        'callback': onResponse,
+    })
+    admCli.sendMessages()
+
+def adminOnAuth(cli, gl, authst):
+    assert cli.user == 'admin'
+    gl['adminLoggedIn'].set()
+
+def userOnAuth(cli, gl, authst):
+    n = cli.user
+    assert n != 'admin'
+
+    cliDicts = gl['cliDicts']
+    cliDict = cliDicts[n]
+
+    if not cliDict['firstAuthFailed'].isSet():
+        assert authst.status != 0
+        cliDict['firstAuthFailed'].set()
+        cli.authKey = k = f'secret_{n}'
+        registerAuthKey(gl, n)
+    else:
+        assert authst.status == 0
+        mainCond = gl['mainCond']
+        with mainCond:
+            gl['NAuthUsers'] += 1
+            mainCond.notify_all()
+
+
+def initUsers(gl):
+    NUsers = gl['case']['NUsers']
+
+    us = {
+        n: ASUser(name=n, authKeys=(k,), isAdmin=ia)
+            for n, k, ia in chain(
+                (('admin', 'adminsecret', True),),
+                ((f'user{i}', '', False) for i in range(NUsers)),
+            )
+    }
+
+    cliDicts = {
+        n: {
+            'user': u,
+            'firstAuthFailed': Event(),
+            '': Event(),
+        } for n, u in us.items()
+    }
+
+    usersTbl=server.UsersTbl(staticUsers=list(us.values()), authUsersInMem=True)
+
+    return cliDicts, usersTbl
+
+
+def doTest(case):
+    with TestKitAS() as tk:
+        NUsers = case['NUsers']
+        mainCond = Condition()
+
+        gl = {
+            'case': case,
+            'mainCond': mainCond,
+            'NAuthUsers': 0,
+            'adminLoggedIn': Event(),
+        }
+
+        cliDicts, usersTbl = initUsers(gl)
+        gl['cliDicts'] = cliDicts
+
+        class SMAClass_srv(server.ServerMessageArray.cloneClass(
+            add_MSG_TYPES = ['test']
+        )): pass
+
+        class CMAClass_srv(server.ClientMessageArray.cloneClass(
+            add_MSG_TYPES = ['test']
+        )):
+            def on_test(self, m):
+                self.pushMessage({
+                    'type': 'test',
+                    'sum': m['addend1'] + m['addend2']
+                }, cbFromCliMsg=m)
+
+        class SMAClass_cli(client.ServerMessageArray):
+            def on_auth(self, m):
+                authst = super().on_auth(m)
+                cli = self.cli
+                if cli.user == 'admin':
+                    adminOnAuth(cli, gl, authst)
+                else:
+                    userOnAuth(cli, gl, authst)
+
+            def on_test(self, m): pass
+            def on_admin(self, m): pass
+
+        srvProc = tk.startServer(
+            SMAClass=SMAClass_srv,
+            CMAClass=CMAClass_srv,
+            usersTbl = usersTbl,
+        )
+        time.sleep(0.1)
+
+        for n, cliDict in cliDicts.items():
+            u = cliDict['user']
+            cli, thCli = tk.startClient(SMAClass=SMAClass_cli, user=u)
+            cliDict.update({'cli': cli, 'thCli': thCli})
+
+        with mainCond:
+            mainCond.wait_for(
+                lambda: gl['NAuthUsers'] == NUsers, timeout=0.1
+            )
+
+            assert gl['NAuthUsers'] == NUsers, f"NAuthUsers = {gl['NAuthUsers']}"
+
+cases = [
+    {'NUsers': 1},
+]
+
+for case in cases: doTest(case)

@@ -1,7 +1,8 @@
 import threading
 import time
-
 import socketio
+
+from handyPyUtil.loggers import fmtExc
 from ..BaseClientServer import BaseClientServer
 
 DFLT_SOCK_REINIT_ON_FAILURE_SEC = 10
@@ -81,7 +82,9 @@ class Client(BaseClientServer):
             sma = self.SMAClass(self, ms)
             sma.processMessages()
         except Exception as e:
-            self.logger.error(f'an error occurred while processing messages: {e}')
+            msg = fmtExc(e, inclTraceback=self.debug)
+            msg = f'an error occurred while processing messages: {msg}'
+            self.logger.error(msg)
 
     def discardCliMessageArray(self, cma):
         concur = self.concur
