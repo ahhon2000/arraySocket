@@ -10,9 +10,10 @@ from itertools import chain
 
 from arraySocket import client, server, ASUser
 from . import TestKitAS
+from ..server.ServerMessageArray import SRV_ERR_MSG_CODES
 
 
-def execAdminCmdAndRelogin(gl, n, cmd):
+def execAdminCmd(gl, n, cmd, cb=None, relogin=True):
     gl['adminLoggedIn'].wait(timeout=0.1)
 
     cliDicts = gl['cliDicts']
@@ -21,8 +22,10 @@ def execAdminCmdAndRelogin(gl, n, cmd):
     k = cli.authKey
 
     def onResponse(m):
-        assert m.get('status', 63) == 0
-        cli.login()
+        st = m.get('status', 63)
+        assert st == 0, f"status={st}: {m.get('descr')}"
+        if cb: cb()
+        if relogin: cli.login()
 
     m = {
         'type': 'admin',
@@ -36,15 +39,33 @@ def execAdminCmdAndRelogin(gl, n, cmd):
     admCli.pushMessage(m)
     admCli.sendMessages()
 
+def userGotErrorFromSrv(cli, gl, m):
+    code = m.get('code', 127)
+    n = cli.user
+    cliDict = gl['cliDicts'][n]
+
+    tk = gl['tk']
+    tk.logger.debug(f"user {n} received an error message from server (code={code}); waitingForAccessDenied = {'set' if cliDict['waitingForAccessDenied'].isSet() else 'unset'}")
+
+    if code == SRV_ERR_MSG_CODES.access_denied.value:
+        if cliDict['waitingForAccessDenied'].isSet():
+            cliDict['waitingForAccessDenied'].clear()
+            tk.logger.debug(f'calling cli.login()')
+            cli.login()
+
+def logoutUser(gl, n, cb=None):
+    execAdminCmd(gl, n, 'logoutUser', cb=cb, relogin=False)
 
 def registerAuthKey(gl, n):
-    execAdminCmdAndRelogin(gl, n, 'addAuthKey')
+    tk = gl['tk']
+    tk.logger.debug(f'registering the key of user {n}')
+    execAdminCmd(gl, n, 'addAuthKey')
 
 def rmAuthKey(gl, n):
     i = gl['cliDicts'][n]['user'].index
 
     cmd = 'rmAuthKey' if i % 2 else 'rmAllAuthKeys'
-    execAdminCmdAndRelogin(gl, n, cmd)
+    execAdminCmd(gl, n, cmd)
 
 def adminOnAuth(cli, gl, authst):
     assert cli.user == 'admin'
@@ -56,23 +77,39 @@ def userOnAuth(cli, gl, authst):
 
     cliDicts = gl['cliDicts']
     cliDict = cliDicts[n]
+    tk = gl['tk']
 
-    if not cliDict['firstAuthFailed'].isSet():
-        assert authst.status != 0
-        cliDict['firstAuthFailed'].set()
-        cli.authKey = k = f'secret_{n}'
-        registerAuthKey(gl, n)
-    else:
-        if not cliDict['secondAuthSucceeded'].isSet():
-            assert authst.status == 0
-            cliDict['secondAuthSucceeded'].set()
-            rmAuthKey(gl, n)
-        else:
+    for step, ev in enumerate(cliDict['authSteps']):
+        if ev.isSet(): continue
+
+        tk.logger.debug(f'Executing auth. step {step}; authst={authst.status}')
+
+        if step == 0:
             assert authst.status != 0
+            cli.authKey = k = f'secret_{n}'
+            registerAuthKey(gl, n)
+        elif step == 1:
+            assert authst.status == 0
+            rmAuthKey(gl, n)
+        elif step == 2:
+            assert authst.status != 0
+            registerAuthKey(gl, n)
+        elif step == 3:
+            assert authst.status == 0
+            cliDict['waitingForAccessDenied'].set()
+
+            def onLogout():
+                cli.pushMessage({'type': 'test'})
+                cli.sendMessages()
+            logoutUser(gl, n, cb=onLogout)
+        elif step == 4:
+            assert authst.status == 0
             mainCond = gl['mainCond']
             with mainCond:
                 gl['NFinishedUsers'] += 1
                 mainCond.notify_all()
+        ev.set()
+        break
 
 
 def initUsers(gl):
@@ -94,8 +131,8 @@ def initUsers(gl):
     cliDicts = {
         n: {
             'user': u,
-            'firstAuthFailed': Event(),
-            'secondAuthSucceeded': Event(),
+            'authSteps': tuple(Event() for step in range(5)),
+            'waitingForAccessDenied': Event(),
         } for n, u in us.items()
     }
 
@@ -114,6 +151,7 @@ def doTest(case):
             'mainCond': mainCond,
             'NFinishedUsers': 0,
             'adminLoggedIn': Event(),
+            'tk': tk,
         }
 
         cliDicts, usersTbl = initUsers(gl)
@@ -129,7 +167,6 @@ def doTest(case):
             def on_test(self, m):
                 self.pushMessage({
                     'type': 'test',
-                    'sum': m['addend1'] + m['addend2']
                 }, cbFromCliMsg=m)
 
         class SMAClass_cli(client.ServerMessageArray):
@@ -143,6 +180,12 @@ def doTest(case):
 
             def on_test(self, m): pass
             def on_admin(self, m): pass
+
+            def on_error(self, m):
+                super().on_error(m)
+                cli = self.cli
+                if cli.user != 'admin':
+                    userGotErrorFromSrv(cli, gl, m)
 
         srvProc = tk.startServer(
             SMAClass=SMAClass_srv,
@@ -163,15 +206,18 @@ def doTest(case):
                 timeout = 0.1 * (NUsers + 1),
             )
 
+        tk.logger.info(f'All clients should have finished by now')
+
         assert gl['NFinishedUsers'] == NUsers, f"NFinishedUsers={gl['NFinishedUsers']}"
         for n, cliDict in cliDicts.items():
             if n == 'admin': continue
-            assert cliDict['firstAuthFailed'].isSet()
-            assert cliDict['secondAuthSucceeded'].isSet()
+            for ev in cliDict['authSteps']:
+                assert ev.isSet()
+            assert not cliDict['waitingForAccessDenied'].isSet()
 
 cases = [
     {'NUsers': 1},
-    {'NUsers': 10},
+    #{'NUsers': 10},  # TODO uncomment
 ]
 
 for case in cases: doTest(case)

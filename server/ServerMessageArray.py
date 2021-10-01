@@ -1,4 +1,11 @@
+from enum import Enum
+
 from .. import BaseMessageArray
+
+class SRV_ERR_MSG_CODES(Enum):
+    unsupported_msg_type = 2
+    access_denied = 3
+    general_error = 127
 
 class ServerMessageArray(
     BaseMessageArray.cloneClass(
@@ -56,8 +63,10 @@ class ServerMessageArray(
 
         self.messages.append(m)
 
-    def pushErrorMessage(self, descr):
+    def pushErrorMessage(self, descr, code=SRV_ERR_MSG_CODES.general_error):
+        code = code.value
         self.pushMessage({
             'type': 'error',
             'descr': descr,
+            'code': code,
         })

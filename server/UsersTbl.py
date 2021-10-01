@@ -1,5 +1,7 @@
 from collections import namedtuple
 
+from handyPyUtil.concur import ConcurSensitiveObjs
+
 from .. import ASUser
 
 UserAuthStatus = namedtuple('UserAuthStatus', ('status', 'descr', 'user'))
@@ -11,14 +13,17 @@ class UsersTbl:
         authUsersInMem = False,
     ):
         self.authUsersInMem = authUsersInMem
-        self._authUsers = {}  # format:  sid: ASUser
 
-        # Generally, it's a bad idea to maintain a large table of users in
-        # memory. The attribute `staticUsers' is meant to consist of a
-        # small number of embedded users (like admin), or for tests.
-        #
-        # Each entry in staticUsers maps a user's name to an ASUser object.
-        self.staticUsers = {u.name: u for u in staticUsers}
+        self.concur = concur = ConcurSensitiveObjs()
+        with concur:
+            concur.authUsers = {}  # format:  sid: ASUser
+
+            # Generally, it's a bad idea to maintain a large table of users in
+            # memory. The attribute `staticUsers' is meant to consist of a
+            # small number of embedded users (like admin), or for tests.
+            #
+            # Each entry in staticUsers maps a user's name to an ASUser object.
+            concur.staticUsers = {u.name: u for u in staticUsers}
 
         self.authEveryone = authEveryone
         self.authUsersInMem = authUsersInMem
@@ -39,22 +44,24 @@ class UsersTbl:
         S = UserAuthStatus
         s = S(127, 'unknown authentication error', None)
 
-        u = self.staticUsers.get(name)
-        if not u:
-            u = self.lookupUser(name)
+        concur = self.concur
+        with concur:
+            u = concur.staticUsers.get(name)
+            if not u:
+                u = self.lookupUser(name)
 
-        if self.authEveryone:
-            s = S(0, 'success', u)
-        elif not name:
-            s = S(1, 'no user', u)
-        else:
-            if not authKey:
-                s = S(2, 'no authentication key', u)
+            if self.authEveryone:
+                s = S(0, 'success', u)
+            elif not name:
+                s = S(1, 'no user', u)
             else:
-                s = S(3, 'wrong credentials', u)
-                if u:
-                    if name == u.name  and  authKey in u.authKeys:
-                        s = S(0, 'success', u)
+                if not authKey:
+                    s = S(2, 'no authentication key', u)
+                else:
+                    s = S(3, 'wrong credentials', u)
+                    if u:
+                        if name == u.name  and  authKey in u.authKeys:
+                            s = S(0, 'success', u)
 
         return s
 
@@ -77,7 +84,9 @@ class UsersTbl:
         """
 
         if self.authUsersInMem:
-            self._authUsers[sid] = u
+            concur = self.concur
+            with concur:
+                concur.authUsers[sid] = u
 
     def lookupAuthUser(self, sid):
         """Search the (internal) table for an authenticated user by their sid
@@ -87,7 +96,9 @@ class UsersTbl:
 
         u = None
         if self.authUsersInMem:
-            u = self._authUsers.get(sid)
+            concur = self.concur
+            with concur:
+                u = concur.authUsers.get(sid)
 
         return u
 
@@ -97,7 +108,9 @@ class UsersTbl:
         Override if a different mechanism of storing sid-user pairs is used.
         """
 
-        self._authUsers.pop(sid, None)
+        concur = self.concur
+        with concur:
+            concur.authUsers.pop(sid, None)
 
     def logoutUser(self, name):
         """Forget all sid's associated with a given user
@@ -105,9 +118,15 @@ class UsersTbl:
         Override if a different mechanism of storing sid-user pairs is used.
         """
 
-        aus = self._authUsers
-        for sid, u in aus.items():
-            if u.name == name:
+        concur = self.concur
+        with concur:
+            aus = concur.authUsers
+            rm_sids = []
+            for sid, u in aus.items():
+                if u.name == name:
+                    rm_sids.append(sid)
+
+            for sid in rm_sids:
                 aus.pop(sid, None)
 
     def addAuthKey(self, name, authKey):
@@ -119,30 +138,36 @@ class UsersTbl:
         if not name: raise Exception(f'no user name given')
         if not authKey: raise Exception(f'no authKey given')
 
-        sus = self.staticUsers
+        concur = self.concur
+        with concur:
+            sus = concur.staticUsers
 
-        u = sus.get(name)
-        if not u:
-            u = ASUser(name=name)
-            sus[name] = u
+            u = sus.get(name)
+            if not u:
+                u = ASUser(name=name)
+                sus[name] = u
 
-        u.authKeys.add(authKey)
+            u.authKeys.add(authKey)
 
     def rmAuthKey(self, name, authKey):
         """Remove authKey from a user's keys
         """
 
-        sus = self.staticUsers
-        u = sus.get(name)
-        if u:
-            u.authKeys.discard(authKey)
+        concur = self.concur
+        with concur:
+            sus = concur.staticUsers
+            u = sus.get(name)
+            if u:
+                u.authKeys.discard(authKey)
 
     def rmAllAuthKeys(self, name):
         """Remove all keys a user currently has
         """
 
-        sus = self.staticUsers
-        u = sus.get(name)
-        if u:
-            u.authKeys.clear()
-            sus.pop(name, None)
+        concur = self.concur
+        with concur:
+            sus = concur.staticUsers
+            u = sus.get(name)
+            if u:
+                u.authKeys.clear()
+                sus.pop(name, None)

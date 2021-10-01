@@ -54,10 +54,12 @@ class ServerMessageArray(BaseMessageArray):
         status returned by the server and descr is that status's description
         """
 
+
         cli = self.cli
 
         S = UserAuthStatus
         s = S(m.get('status'), m.get('descr', ''))
+        self.logger.debug(f'received an "auth" message from the server (status={s.status})')
 
         if s.status is None:
             raise Exception('the server returned no authentication status');
