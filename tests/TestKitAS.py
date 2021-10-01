@@ -1,3 +1,4 @@
+import threading
 from threading import Thread
 from more_itertools import first
 
@@ -14,12 +15,16 @@ class TestKitAS(TestKit):
     def __init__(self,
         addr=DFLT_TEST_ADDR, port=DFLT_TEST_PORT,
         CMAClass = None, SMAClass = None,
+        lock = None,
         **kwarg,
     ):
         self.addr = addr
         self.port = port
         self.CMAClass = CMAClass
         self.SMAClass = SMAClass
+
+        if not lock: lock = threading.RLock()
+        self.lock = lock
 
         self.activeClients = []  # each element is a tuple (thread, client)
 
@@ -31,6 +36,8 @@ class TestKitAS(TestKit):
         **srvKwarg
     ):
         def srvTarget(addr, port, logger, **kwargs):
+            srvKwarg.setdefault('lock', self.lock)
+
             srv = Server(logger=logger, debug=True, **srvKwarg)
             srv.run(addr=addr, port=port)
 
@@ -73,6 +80,7 @@ class TestKitAS(TestKit):
                 })
             else: cliKwarg['user'] = user
 
+        cliKwarg.setdefault('lock', self.lock)
         cli = Client(uri, logger=self.logger, **cliKwarg)
 
         def trgCli():

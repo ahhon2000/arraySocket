@@ -7,14 +7,16 @@ from .. import ASUser
 UserAuthStatus = namedtuple('UserAuthStatus', ('status', 'descr', 'user'))
 
 class UsersTbl:
-    def __init__(self,
+    def __init__(self, srv,
         staticUsers = (),
         authEveryone = False,
         authUsersInMem = False,
     ):
+        self.srv = srv
         self.authUsersInMem = authUsersInMem
+        self.authEveryone = authEveryone
 
-        self.concur = concur = ConcurSensitiveObjs()
+        self.concur = concur = ConcurSensitiveObjs(srv.lock)
         with concur:
             concur.authUsers = {}  # format:  sid: ASUser
 
@@ -24,9 +26,6 @@ class UsersTbl:
             #
             # Each entry in staticUsers maps a user's name to an ASUser object.
             concur.staticUsers = {u.name: u for u in staticUsers}
-
-        self.authEveryone = authEveryone
-        self.authUsersInMem = authUsersInMem
 
     def checkUserCredentials(self, name, authKey):
         """Check if a user is allowed to access the server

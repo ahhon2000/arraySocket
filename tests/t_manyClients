@@ -46,15 +46,14 @@ def initUsers(NClients):
     for i in range(NClients):
         u = ASUser(name=f'user{i}', authKeys=('secret{i}',))
         us.append(u)
-    usersTbl = server.UsersTbl(staticUsers=us, authUsersInMem=True)
 
-    return us, usersTbl
+    return us
 
 def doTest(case):
     with TestKitAS() as tk:
         NClients = case['NClients']
         numbersPerClient = case['numbersPerClient']
-        us, usersTbl = initUsers(NClients)
+        us = initUsers(NClients)
         calculationsCompleted = Event()
 
         globState = {
@@ -87,7 +86,8 @@ def doTest(case):
         srvProc = tk.startServer(
             SMAClass=SMAClass_srv,
             CMAClass=CMAClass_srv,
-            usersTbl = usersTbl,
+            staticUsers = list(us),
+            authUsersInMem = True,
         )
         time.sleep(0.1)
 

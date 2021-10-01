@@ -136,9 +136,7 @@ def initUsers(gl):
         } for n, u in us.items()
     }
 
-    usersTbl=server.UsersTbl(staticUsers=list(us.values()), authUsersInMem=True)
-
-    return cliDicts, usersTbl
+    return cliDicts
 
 
 def doTest(case):
@@ -154,7 +152,7 @@ def doTest(case):
             'tk': tk,
         }
 
-        cliDicts, usersTbl = initUsers(gl)
+        cliDicts = initUsers(gl)
         gl['cliDicts'] = cliDicts
 
         class SMAClass_srv(server.ServerMessageArray.cloneClass(
@@ -190,7 +188,9 @@ def doTest(case):
         srvProc = tk.startServer(
             SMAClass=SMAClass_srv,
             CMAClass=CMAClass_srv,
-            usersTbl = usersTbl,
+            authUsersInMem = True,
+            staticUsers = [d['user'] for d in cliDicts.values()],
+            
         )
         time.sleep(0.1)
 

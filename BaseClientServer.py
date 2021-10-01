@@ -13,6 +13,7 @@ class BaseClientServer:
         isServer = False,
         CMAClass = None, SMAClass = None,
         logger = None,
+        lock = None,
     ):
         self.debug = debug
         addStdLogger(self, default=logger, debug=debug)
@@ -42,7 +43,9 @@ class BaseClientServer:
 
         self.evtStop = threading.Event()
 
-        self.lock = lock = threading.RLock()
+        if not lock: lock = threading.RLock()
+        self.lock = lock
+
         self.concur = concur = ConcurSensitiveObjs(lock)
         with concur:
             concur.timers = []

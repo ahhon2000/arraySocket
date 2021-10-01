@@ -9,12 +9,9 @@ class AdminInterface(ClonableClass):
         'logoutUser': {'args': ('user',)},
     }
 
-    def __init__(self, srv=None):
-        self.setSrv(srv)
-
-    def setSrv(self, srv):
+    def __init__(self, srv):
         self.srv = srv
-        self.logger = srv.logger if srv else None
+        self.logger = srv.logger
 
     def processMessage(self, cma, m):
         srv = self.srv
