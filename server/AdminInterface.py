@@ -2,11 +2,12 @@ from handyPyUtil.loggers import fmtExc
 from handyPyUtil.classes import ClonableClass
 
 class AdminInterface(ClonableClass):
-    USERS_TBL_CMDS = (
-        'addAuthKey', 'rmAuthKey', 'rmAllAuthKeys',
-        'logoutUser',
-    )
-    EDITABLE_TUPLE_ATTRS = ('USERS_TBL_CMDS',)
+    USERS_TBL_CMDS = {
+        'addAuthKey': {'args': ('user', 'authKey',)},
+        'rmAuthKey': {'args': ('user', 'authKey',)},
+        'rmAllAuthKeys': {'args': ('user',)},
+        'logoutUser': {'args': ('user',)},
+    }
 
     def __init__(self, srv=None):
         self.setSrv(srv)
@@ -23,9 +24,12 @@ class AdminInterface(ClonableClass):
             if not cmd: raise Exception(f'no command given')
 
             if cmd in self.USERS_TBL_CMDS:
-                n, k = m.get('user'), m.get('authKey')
-                if not n: raise Exception(f'missing the argument "user"')
-                arg = (n, k) if k else (n,)
+                argNames = self.USERS_TBL_CMDS[cmd]['args']
+                arg = []
+                for an in argNames:
+                    av = m.get(an)
+                    if an is None: raise Exception(f'missing argument "{an}"')
+                    arg.append(av)
 
                 ut = srv.usersTbl
                 h = getattr(ut, cmd, None)
