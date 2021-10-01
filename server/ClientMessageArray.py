@@ -1,12 +1,10 @@
 from handyPyUtil.loggers import fmtExc
 
 from .. import BaseMessageArray
-from .ServerMessageArray import SRV_ERR_MSG_CODES
-
-class ExcWCode(Exception):
-    def __init__(self, m, code=None, **kwarg):
-        super().__init__(f'{m} (code={code.value})', **kwarg)
-        self.code = code
+from .Server import (
+    SRV_ERR_MSG_CODES, ServerError, ServerErrorAccessDenied,
+    ServerErrorUnsupported,
+)
 
 class ClientMessageArray(
     BaseMessageArray.cloneClass(
@@ -40,7 +38,7 @@ class ClientMessageArray(
                 self._processMessage1(m)
             except Exception as e:
                 code = SRV_ERR_MSG_CODES.general_error
-                if isinstance(e, ExcWCode):
+                if isinstance(e, ServerError):
                     code = e.code
 
                 s = fmtExc(e, inclTraceback=srv.debug)
@@ -52,15 +50,13 @@ class ClientMessageArray(
         if not isinstance(m, dict): raise Exception('client message not a dictionary')
         typ = m.get('type')
         if typ not in self.MSG_TYPES:
-            raise ExcWCode(
+            raise ServerErrorUnsupported(
                 f'unsupported message type: {typ}',
                 code = SRV_ERR_MSG_CODES.unsupported_msg_type
             )
 
         if not self.isAuthenticated  and  typ != 'auth':
-            raise ExcWCode(
-                f'Access denied', code=SRV_ERR_MSG_CODES.access_denied,
-            )
+            raise ServerErrorAccessDenied(f'Access denied')
 
         h = getattr(self, 'on_' + typ, None)
         if not h: raise Exception(f'no handler for message type={typ}')
@@ -71,9 +67,8 @@ class ClientMessageArray(
         srv = self.srv
         u = self.user
         if not self.isAuthenticated or not u:
-            raise ExcWCode(
+            raise ServerErrorAccessDenied(
                 f'access to the admin interface denied: anonymous user',
-                code = SRV_ERR_MSG_CODES.access_denied,
             )
         if not u.isAdmin: raise Exception(f'the user is not an admin')
 

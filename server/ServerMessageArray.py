@@ -1,11 +1,6 @@
-from enum import Enum
-
 from .. import BaseMessageArray
 
-class SRV_ERR_MSG_CODES(Enum):
-    unsupported_msg_type = 2
-    access_denied = 3
-    general_error = 127
+from .Server import SRV_ERR_MSG_CODES, ServerError, ServerErrorSrvMsg
 
 class ServerMessageArray(
     BaseMessageArray.cloneClass(
@@ -39,11 +34,11 @@ class ServerMessageArray(
         contain references to.
         """
 
-        if not isinstance(m, dict): raise Exception('message not a dictionary')
+        if not isinstance(m, dict): raise ServerErrorSrvMsg('message not a dictionary')
 
         typ = m.get('type')
         if typ not in self.MSG_TYPES:
-            raise Exception(f'unsupported message type: {typ}')
+            raise ServerErrorSrvMsg(f'unsupported message type: {typ}')
 
         m = dict(m)
         if cbFromCliMsg:

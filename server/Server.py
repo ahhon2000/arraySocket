@@ -1,11 +1,36 @@
 from collections import namedtuple
 import socketio
 from pathlib import Path
+from enum import Enum
 
 from .. import BaseClientServer
 
 DEFAULT_PORT = 5490
 DEFAULT_PORT2 = 5491
+
+class SRV_ERR_MSG_CODES(Enum):
+    srv_msg_error = 1
+    unsupported_msg_type = 2
+    access_denied = 3
+    general_error = 127
+
+class ServerError(Exception):
+    def __init__(self, m, code=SRV_ERR_MSG_CODES.general_error, **kwarg):
+        super().__init__(f'{m} (code={code.value})', **kwarg)
+        self.code = code
+
+class ServerErrorSrvMsg(ServerError):
+    def __init__(self, m):
+        super().__init__(m, code = SRV_ERR_MSG_CODES.srv_msg_error)
+
+class ServerErrorUnsupported(ServerError):
+    def __init__(self, m):
+        super().__init__(m, code = SRV_ERR_MSG_CODES.unsupported_msg_type)
+
+class ServerErrorAccessDenied(ServerError):
+    def __init__(self, m):
+        super().__init__(m, code = SRV_ERR_MSG_CODES.access_denied)
+
 
 class Server(BaseClientServer):
     def __init__(self,
