@@ -1,0 +1,27 @@
+from handyPyUtil.db import TableRow
+from handyPyUtil.db.Database import DBTYPES
+
+class TRAuthKey(TableRow):
+    _primaryKey = 'authKey'
+    _columnDefs = {
+        'user': {
+            DBTYPES.mysql: "INTEGER UNSIGNED NOT NULL",
+        },
+        'authKey': {
+            DBTYPES.mysql: "VARCHAR(64) PRIMARY KEY NOT NULL COLLATE utf8_bin",
+        },
+    }
+
+    def _getDynamicConstraints(self):
+        cs = super()._getDynamicConstraints()
+        cs.update({
+            DBTYPES.mysql: [
+                f"""
+                    CONSTRAINT `fk_user` FOREIGN KEY (user)
+                    REFERENCES {self._usersTableName}(id)
+                    ON DELETE CASCADE
+                """,
+            ],
+        })
+
+        return cs

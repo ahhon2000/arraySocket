@@ -15,6 +15,7 @@ class UsersTbl:
         self.srv = srv
         self.authUsersInMem = authUsersInMem
         self.authEveryone = authEveryone
+        self.logger = srv.logger
 
         self.concur = concur = ConcurSensitiveObjs(srv.lock)
         with concur:
