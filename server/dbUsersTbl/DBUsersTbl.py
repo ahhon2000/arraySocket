@@ -1,22 +1,39 @@
+from handyPyUtil.db import Database_mysql
+
 from .. import UsersTbl
 
 class DBUsersTbl(UsersTbl):
+    "A table of Array Socket Server users that is stored in a database"
+
+    DFLT_DB_CLASS = Database_mysql
+
     def __init__(self, *arg,
-        dbobj=None,
+        dbobj = None,
+        db_kwarg = {},
         usersTableName = 'array_server_users',
         authUsersTableName = 'array_server_auth_users',
         authKeysTableName = 'array_server_auth_keys',
         **kwarg
     ):
+        """Initialise an DBUsersTbl instance
+
+        If dbobj is given use that database. Otherwise instantiate a new
+        DFLT_DB_CLASS object. In the latter case, db_kwarg is passed on as
+        keyword arguments to the DFLT_DB_CLASS constructor.
+        """
+
         # TODO devise a mechanism to logout users who have not
         # TODO sent a message in a specified interval
 
-        if not dbobj: raise Exception(f'dbobj undefined')
-        self.dbobj = dbobj
-        self.q = dbobj
         super().__init__(*arg, **kwarg)
 
         self.logger.debug(f'initialising DBUsersTbl')
+
+        if not dbobj:
+            dbobj = self.DFLT_DB_CLASS(**db_kwarg)
+
+        self.dbobj = dbobj
+        self.q = dbobj
 
         from . import TRUser, TRAuthKey, TRAuthUser
 

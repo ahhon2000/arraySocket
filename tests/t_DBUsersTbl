@@ -1,0 +1,30 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+import os, sys
+import time
+from pathlib import Path
+from threading import Thread, Event
+
+from handyPyUtil.db import Database_mysql
+
+from arraySocket import client, server
+from ..server.dbUsersTbl import DBUsersTbl
+
+cnf = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
+
+srv = server.Server(
+    UsersTblCls = DBUsersTbl,
+    usersTbl_kwarg = {
+        'db_kwarg': {
+            'read_default_file': str(cnf),
+        },
+    },
+)
+
+assert isinstance(srv.usersTbl, DBUsersTbl)
+q = srv.usersTbl.dbobj
+assert isinstance(q, Database_mysql)
+assert (q[0]['x'] / "SELECT 1 as x") == 1

@@ -217,7 +217,7 @@ def doTest(case):
                         msg = fmtExc(e, inclTraceback=True)
                         tk.logger.error(msg)
             usersTbl_kwarg.update({
-                'staticUsers': [cliDicts['admin']['user']],
+                'db_kwarg': [cliDicts['admin']['user']],
             })
             maxInitSec = 0.3
         else: raise Exception(f'unsupported UsersTblCls={type(UsersTblCls)}')
