@@ -7,6 +7,7 @@ import os, sys
 import time
 from pathlib import Path
 from threading import Thread, Event
+from more_itertools import first
 
 from handyPyUtil.db import Database_mysql
 
@@ -15,6 +16,23 @@ from ..server.dbUsersTbl import DBUsersTbl
 from .. import ASUser
 
 MYSQL_CNF = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
+
+
+def getUser(utbl, name):
+    q = utbl.dbobj
+    urow = q[0] / f"""
+        SELECT * FROM `{utbl.TRUser._tableName}`
+    """
+
+    keys = q(aslist=True, uid=urow['id']) / (lambda r: r['authKey']) / f"""
+        SELECT authKey
+        FROM `{utbl.TRAuthKey._tableName}`
+        WHERE user = %(uid)s
+    """
+
+    u = ASUser(name=urow['name'], authKeys=keys, isAdmin=urow['isAdmin'])
+
+    return u
 
 def doTest():
     # Check if the server's users table can connect to a MySQL DB
@@ -33,34 +51,28 @@ def doTest():
     assert isinstance(q, Database_mysql)
     assert (q[0]['x'] / "SELECT 1 as x") == 1
 
+    srv.usersTbl.addAuthKey('admin', 'mysecret')
+    u = getUser(srv.usersTbl, 'admin')
+    assert u.name == 'admin'
+    assert 'mysecret' in u.authKeys
+
     # Check if the Server constructor understands shorcut options
 
-    srv.usersTbl.rmAllAuthKeys('admin') # clean the table of earlier entries
     srv = server.Server(
         usersStorage = 'db',
         read_default_file = str(MYSQL_CNF),
-        adminAuthKey = 'mysecret',
+        adminAuthKey = 'mysecret2',
     )
 
     assert isinstance(srv.usersTbl, DBUsersTbl)
     q = srv.usersTbl.dbobj
     assert isinstance(q, Database_mysql)
-    assert (q[0]['x'] / "SELECT 1 as x") == 1
 
-    utbl = srv.usersTbl
-    rows = q(aslist=True) / f"""
-        SELECT u.name, ak.authKey
-        FROM
-            `{utbl.TRUser._tableName}` u
-            INNER JOIN
-            `{utbl.TRAuthKey._tableName}` ak
-        ON
-            u.id = ak.user
-        WHERE
-            u.name = 'admin'
-    """
-    assert len(rows) == 1, f'len(rows) = {len(rows)}'
-    assert rows[0]['name'] == 'admin'
-    assert rows[0]['authKey'] == 'mysecret'
+    u = getUser(srv.usersTbl, 'admin')
+
+    assert len(u.authKeys) == 1
+    assert u.name == 'admin'
+    assert first(u.authKeys) == 'mysecret2'
+    assert u.isAdmin
 
 doTest()

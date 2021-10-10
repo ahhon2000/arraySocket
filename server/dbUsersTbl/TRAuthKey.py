@@ -4,11 +4,14 @@ from handyPyUtil.db.Database import DBTYPES
 class TRAuthKey(TableRow):
     _primaryKey = 'authKey'
     _columnDefs = {
+        'id': {
+            DBTYPES.mysql: "BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT",
+        },
         'user': {
             DBTYPES.mysql: "INTEGER UNSIGNED NOT NULL",
         },
         'authKey': {
-            DBTYPES.mysql: "VARCHAR(64) PRIMARY KEY NOT NULL COLLATE utf8_bin",
+            DBTYPES.mysql: "VARCHAR(64) NOT NULL COLLATE utf8_bin",
         },
     }
 

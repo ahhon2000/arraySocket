@@ -62,6 +62,7 @@ class Server(BaseClientServer):
 
         If adminAuthKey is given and is not empty add this string to the set of
         keys of user `admin'. If user `admin' doesn't exist create it.
+        All previous keys (if any) will be removed.
         """
 
         super().__init__(isServer=True, **kwarg)
@@ -105,6 +106,7 @@ class Server(BaseClientServer):
 
         self.usersTbl = usersTbl = UsersTblCls(self, **usersTbl_kwarg)
         if adminAuthKey:
+            usersTbl.rmAllAuthKeys('admin')
             usersTbl.addAuthKey('admin', adminAuthKey, isAdmin=True)
 
         # Init the app object
