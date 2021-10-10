@@ -49,11 +49,17 @@ class DBUsersTbl(UsersTbl):
         tru = self.TRUser._fromColVal(self, 'name', u.name)
         if not tru: raise Exception(f'user "{u.name}" does not exist')
 
-        q(uid=tru.id, sid=sid) / f"""
-            INSERT INTO `{self.TRAuthUser._tableName}`
-            (user, sid)
-            VALUES (%(uid)s, %(sid)s)
+        sids = q(sid=sid, aslist=True) / f"""
+            SELECT au.sid FROM `{self.TRAuthUser._tableName}` au
+            WHERE au.sid = %(sid)s
         """
+
+        if not sids:
+            q(uid=tru.id, sid=sid) / f"""
+                INSERT INTO `{self.TRAuthUser._tableName}`
+                (user, sid)
+                VALUES (%(uid)s, %(sid)s)
+            """
 
     def lookupAuthUser(self, sid):
         q = self.q
@@ -92,12 +98,12 @@ class DBUsersTbl(UsersTbl):
                 )
         """
 
-    def addAuthKey(self, name, authKey):
+    def addAuthKey(self, name, authKey, isAdmin=False):
         q = self.q
 
         tru = self.TRUser._fromColVal(self, 'name', name)
         if not tru:
-            tru = self.TRUser(self, name=name)
+            tru = self.TRUser(self, name=name, isAdmin=isAdmin)
             tru._save()
         u = tru._toASUser()
 

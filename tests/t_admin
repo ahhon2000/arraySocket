@@ -210,7 +210,7 @@ def doTest(case):
 
                         ak = next(iter(cliDicts['admin']['user'].authKeys))
                         tk.logger.debug(f"adding the admin's key: {ak}")
-                        self.addAuthKey('admin', ak)
+                        self.addAuthKey('admin', ak, isAdmin=True)
 
                         tk.logger.info(f"DBUsersTbl initialised!")
                     except Exception as e:

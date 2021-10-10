@@ -129,10 +129,11 @@ class UsersTbl:
             for sid in rm_sids:
                 aus.pop(sid, None)
 
-    def addAuthKey(self, name, authKey):
+    def addAuthKey(self, name, authKey, isAdmin=False):
         """Add authKey to the keys of a users
 
-        If name doesn't match any user a new one will be added.
+        If name doesn't match any user a new one will be added with the given
+        value of the isAdmin flag.
         """
 
         if not name: raise Exception(f'no user name given')
@@ -144,7 +145,7 @@ class UsersTbl:
 
             u = sus.get(name)
             if not u:
-                u = ASUser(name=name)
+                u = ASUser(name=name, isAdmin=isAdmin)
                 sus[name] = u
 
             u.authKeys.add(authKey)
