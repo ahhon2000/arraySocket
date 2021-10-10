@@ -70,16 +70,59 @@ class DBUsersTbl(UsersTbl):
         return u
 
     def rmAuthUser(self, sid):
-        pass
+        q = self.q
+        q(sid=sid) / """
+            DELETE FROM `{self.TRAuthUser._tableName}`
+            WHERE sid = %(sid)s
+        """
 
     def logoutUser(self, name):
-        pass
+        q = self.q
+        q(name=name) / """
+            DELETE FROM `{self.TRAuthUser._tableName}`
+            WHERE
+                user = (
+                    SELECT u.id FROM `{self.TRUser._tableName}` u
+                    WHERE u.name = %(name)s
+                )
+        """
 
     def addAuthKey(self, name, authKey):
-        pass
+        q = self.q
+
+        tru = self.TRUser._fromColVal(self, 'name', name)
+        if not tru:
+            tru = self.TRUser(self, name=name)
+            tru._save()
+        u = tru._toASUser()
+
+        if authKey not in u.authKeys:
+            q(uid, authKey=authKey) / """
+                INSERT INTO `self.TRAuthKey._tableName`
+                (user, authKey)
+                VALUES (%(uid)s, %(authKey)s)
+            """
 
     def rmAuthKey(self, name, authKey):
-        pass
+        q = self.q
+        q(name=name, authKey=authKey) / """
+            DELETE FROM `self.TRAuthKey._tableName`
+            WHERE
+                user = (
+                    SELECT u.id FROM `{self.TRUser._tableName}` u
+                    WHERE u.name = %(name)s
+                )
+                and
+                authKey = %(authKey)s
+        """
 
     def rmAllAuthKeys(self, name):
-        pass
+        q = self.q
+        q(name=name) / """
+            DELETE FROM `{self.TRAuthKey._tableName}`
+            WHERE
+                user = (
+                    SELECT u.id FROM `{self.TRUser._tableName}` u
+                    WHERE u.name = %(name)s
+                )
+        """

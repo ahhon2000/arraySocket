@@ -17,8 +17,8 @@ class TRAuthUser(TableRow):
         cs.update({
             DBTYPES.mysql: [
                 f"""
-                    CONSTRAINT `fk_user` FOREIGN KEY (user)
-                    REFERENCES {self._usersTableName}(id)
+                    CONSTRAINT `fk_user` FOREIGN KEY (`user`)
+                    REFERENCES `{self._usersTableName}`(`id`)
                     ON DELETE CASCADE
                 """,
             ],

@@ -9,7 +9,7 @@ class TRUser(TableRow):
             DBTYPES.mysql: "INTEGER UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT",
         },
         'name': {
-            DBTYPES.mysql: "VARCHAR(64) NOT NULL COLLATE utf8_bin",
+            DBTYPES.mysql: "VARCHAR(64) UNIQUE NOT NULL COLLATE utf8_bin",
         },
         'isAdmin': {
             DBTYPES.mysql: "TINYINT NOT NULL DEFAULT 0",
