@@ -2,7 +2,9 @@ import threading
 from threading import Thread
 from more_itertools import first
 
-from handyPyUtil.tests import TestKit
+#from handyPyUtil.tests import TestKit
+from handyPyUtil.db.tests import TestKitDB
+
 from ..server import Server
 from ..client import Client
 
@@ -11,7 +13,8 @@ from .. import ASUser
 DFLT_TEST_ADDR = f"127.0.0.1"
 DFLT_TEST_PORT = 5492
 
-class TestKitAS(TestKit):
+#class TestKitAS(TestKit):
+class TestKitAS(TestKitDB):
     def __init__(self,
         addr=DFLT_TEST_ADDR, port=DFLT_TEST_PORT,
         CMAClass = None, SMAClass = None,
@@ -28,7 +31,7 @@ class TestKitAS(TestKit):
 
         self.activeClients = []  # each element is a tuple (thread, client)
 
-        super().__init__(**kwarg)
+        super().__init__(lock=lock, **kwarg)
 
     def startServer(self,
         addr = None, port = None,
@@ -95,9 +98,9 @@ class TestKitAS(TestKit):
     def getUri(self):
         return f"http://{self.addr}:{self.port}"
 
-    def cleanup(self, **kwarg):
+    def cleanup(self, *arg, **kwarg):
         self._cleanupClients()
-        super().cleanup()
+        super().cleanup(*arg, **kwarg)
 
     def _cleanupClients(self):
         acs = self.activeClients
