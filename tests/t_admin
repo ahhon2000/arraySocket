@@ -19,7 +19,7 @@ from ..server.dbUsersTbl import DBUsersTbl
 
 
 def execAdminCmd(gl, n, cmd, cb=None, relogin=True):
-    gl['adminLoggedIn'].wait(timeout=0.1)
+    gl['adminLoggedIn'].wait(timeout=0.2)
 
     cliDicts = gl['cliDicts']
     cli = cliDicts[n]['cli']
@@ -216,9 +216,7 @@ def doTest(case):
                     except Exception as e:
                         msg = fmtExc(e, inclTraceback=True)
                         tk.logger.error(msg)
-            usersTbl_kwarg.update({
-                'db_kwarg': [cliDicts['admin']['user']],
-            })
+            usersTbl_kwarg.update({})
             maxInitSec = 0.3
         else: raise Exception(f'unsupported UsersTblCls={type(UsersTblCls)}')
 
@@ -239,7 +237,7 @@ def doTest(case):
         with mainCond:
             mainCond.wait_for(
                 lambda: gl['NFinishedUsers'] == NUsers,
-                timeout = 0.1 * (NUsers + 1),
+                timeout = 0.2 * (NUsers + 1),
             )
 
         tk.logger.info(f'All clients should have finished by now')
@@ -259,11 +257,11 @@ cases = [
     }
         for NUsers in (
             1,
-            #10,  # TODO uncomment
+            10,
         )
             for UsersTblCls in (
-                #UsersTbl,  # TODO uncomment
-                DBUsersTbl,  # TODO uncomment
+                UsersTbl,
+                DBUsersTbl,
             )
 ]
 
