@@ -51,7 +51,7 @@ def doTest():
     assert isinstance(q, Database_mysql)
     assert (q[0]['x'] / "SELECT 1 as x") == 1
 
-    srv.usersTbl.addAuthKey('admin', 'mysecret')
+    srv.usersTbl.addAuthKey('admin', 'mysecret', isAdmin=True)
     u = getUser(srv.usersTbl, 'admin')
     assert u.name == 'admin'
     assert 'mysecret' in u.authKeys

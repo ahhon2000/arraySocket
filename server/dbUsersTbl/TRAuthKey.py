@@ -8,7 +8,7 @@ class TRAuthKey(TableRow):
             DBTYPES.mysql: "BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT",
         },
         'user': {
-            DBTYPES.mysql: "INTEGER UNSIGNED NOT NULL",
+            DBTYPES.mysql: "BIGINT UNSIGNED NOT NULL",
         },
         'authKey': {
             DBTYPES.mysql: "VARCHAR(64) NOT NULL COLLATE utf8_bin",

@@ -5,7 +5,7 @@ class TRAuthUser(TableRow):
     _primaryKey = 'sid'
     _columnDefs = {
         'user': {
-            DBTYPES.mysql: "INTEGER UNSIGNED NOT NULL",
+            DBTYPES.mysql: "BIGINT UNSIGNED NOT NULL",
         },
         'sid': {
             DBTYPES.mysql: "VARCHAR(128) PRIMARY KEY NOT NULL COLLATE utf8_bin",

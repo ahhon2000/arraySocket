@@ -6,7 +6,7 @@ from ... import ASUser
 class TRUser(TableRow):
     _columnDefs = {
         'id': {
-            DBTYPES.mysql: "INTEGER UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT",
+            DBTYPES.mysql: "BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT",
         },
         'name': {
             DBTYPES.mysql: "VARCHAR(64) UNIQUE NOT NULL COLLATE utf8_bin",
