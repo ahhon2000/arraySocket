@@ -36,12 +36,17 @@ class TestKitAS(TestKitDB):
     def startServer(self,
         addr = None, port = None,
         process_kwarg = {},
+        usersStorage = 'memory',
         **srvKwarg
     ):
         def srvTarget(addr, port, logger, **kwargs):
             srvKwarg.setdefault('lock', self.lock)
 
-            srv = Server(logger=logger, debug=True, **srvKwarg)
+            srv = Server(
+                logger = logger, debug = True,
+                usersStorage = usersStorage,
+                **srvKwarg
+            )
             srv.run(addr=addr, port=port)
 
         addr = addr if addr else self.addr

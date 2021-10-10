@@ -12,19 +12,55 @@ from handyPyUtil.db import Database_mysql
 
 from arraySocket import client, server
 from ..server.dbUsersTbl import DBUsersTbl
+from .. import ASUser
 
-cnf = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
+MYSQL_CNF = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
 
-srv = server.Server(
-    UsersTblCls = DBUsersTbl,
-    usersTbl_kwarg = {
-        'db_kwarg': {
-            'read_default_file': str(cnf),
+def doTest():
+    # Check if the server's users table can connect to a MySQL DB
+
+    srv = server.Server(
+        UsersTblCls = DBUsersTbl,
+        usersTbl_kwarg = {
+            'db_kwarg': {
+                'read_default_file': str(MYSQL_CNF),
+            },
         },
-    },
-)
+    )
 
-assert isinstance(srv.usersTbl, DBUsersTbl)
-q = srv.usersTbl.dbobj
-assert isinstance(q, Database_mysql)
-assert (q[0]['x'] / "SELECT 1 as x") == 1
+    assert isinstance(srv.usersTbl, DBUsersTbl)
+    q = srv.usersTbl.dbobj
+    assert isinstance(q, Database_mysql)
+    assert (q[0]['x'] / "SELECT 1 as x") == 1
+
+    # Check if the Server constructor understands shorcut options
+
+    srv.usersTbl.rmAllAuthKeys('admin') # clean the table of earlier entries
+    srv = server.Server(
+        usersStorage = 'db',
+        read_default_file = str(MYSQL_CNF),
+        adminAuthKey = 'mysecret',
+    )
+
+    assert isinstance(srv.usersTbl, DBUsersTbl)
+    q = srv.usersTbl.dbobj
+    assert isinstance(q, Database_mysql)
+    assert (q[0]['x'] / "SELECT 1 as x") == 1
+
+    utbl = srv.usersTbl
+    rows = q(aslist=True) / f"""
+        SELECT u.name, ak.authKey
+        FROM
+            `{utbl.TRUser._tableName}` u
+            INNER JOIN
+            `{utbl.TRAuthKey._tableName}` ak
+        ON
+            u.id = ak.user
+        WHERE
+            u.name = 'admin'
+    """
+    assert len(rows) == 1, f'len(rows) = {len(rows)}'
+    assert rows[0]['name'] == 'admin'
+    assert rows[0]['authKey'] == 'mysecret'
+
+doTest()

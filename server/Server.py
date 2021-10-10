@@ -35,7 +35,9 @@ class ServerErrorAccessDenied(ServerError):
 
 class Server(BaseClientServer):
     def __init__(self,
-        usersTbl = None,
+        usersStorage = 'db',
+        read_default_file = None,
+        adminAuthKey = '',
         staticUsers = (),
         authEveryone = False,  # grants access to all users
         authUsersInMem = False,
@@ -45,12 +47,30 @@ class Server(BaseClientServer):
         usersTbl_kwarg = {},
         **kwarg
     ):
+        """Initialise an Array Socket server instance
+
+        usersStorage can be 'memory' or 'db', which controls where to store
+        the users table. Note that if UsersTBlCls is supplied it will
+        override whatever value the usersStorage parameter has.
+
+        For a database users table storage method, a *.cnf file can be specified
+        as the `read_default_file' argument. This file will be used for
+        database initialisation. It can be a string or a Path object.
+
+        UsersTblCls can be given along with keyword arguments to pass on to
+        its constructor (usersTbl_kwarg).
+
+        If adminAuthKey is given and is not empty add this string to the set of
+        keys of user `admin'. If user `admin' doesn't exist create it.
+        """
+
         super().__init__(isServer=True, **kwarg)
 
         if allowCors:
             self.sock_kwarg['cors_allowed_origins'] = '*'
 
         # init the admin interface
+
         if not AdminInterfaceCls:
             from . import AdminInterface
             AdminInterfaceCls = AdminInterface
@@ -60,9 +80,16 @@ class Server(BaseClientServer):
         self._setupSocketHandlers()
 
         # init the users table
+
         if not UsersTblCls:
-            from . import UsersTbl
-            UsersTblCls = UsersTbl
+            if usersStorage == 'memory':
+                from . import UsersTbl
+                UsersTblCls = UsersTbl
+            elif usersStorage == 'db':
+                from .dbUsersTbl import DBUsersTbl
+                UsersTblCls = DBUsersTbl
+            else: raise Exception(f'unsupported value of argument "usersStorage": {usersStorage}')
+
         usersTbl_kwarg = dict(
             {
                 'staticUsers': staticUsers,
@@ -71,7 +98,16 @@ class Server(BaseClientServer):
             },
             **usersTbl_kwarg
         )
+
+        if read_default_file:
+            usersTbl_kwarg.setdefault('db_kwarg', {})
+            usersTbl_kwarg['db_kwarg']['read_default_file'] = str(read_default_file)
+
         self.usersTbl = usersTbl = UsersTblCls(self, **usersTbl_kwarg)
+        if adminAuthKey:
+            usersTbl.addAuthKey('admin', adminAuthKey, isAdmin=True)
+
+        # Init the app object
 
         self.app = app = socketio.WSGIApp(sock,
             static_files = {
