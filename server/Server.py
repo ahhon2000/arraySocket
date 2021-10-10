@@ -4,6 +4,7 @@ from pathlib import Path
 from enum import Enum
 
 from .. import BaseClientServer
+from handyPyUtil.loggers.convenience import fmtExc
 
 DEFAULT_PORT = 5490
 DEFAULT_PORT2 = 5491
@@ -41,6 +42,7 @@ class Server(BaseClientServer):
         allowCors = True,
         AdminInterfaceCls = None,
         UsersTblCls = None,
+        usersTbl_kwarg = {},
         **kwarg
     ):
         super().__init__(isServer=True, **kwarg)
@@ -61,11 +63,15 @@ class Server(BaseClientServer):
         if not UsersTblCls:
             from . import UsersTbl
             UsersTblCls = UsersTbl
-        self.usersTbl = usersTbl = UsersTblCls(self,
-            staticUsers = staticUsers,
-            authEveryone = authEveryone,
-            authUsersInMem = authUsersInMem,
+        usersTbl_kwarg = dict(
+            {
+                'staticUsers': staticUsers,
+                'authEveryone': authEveryone,
+                'authUsersInMem': authUsersInMem,
+            },
+            **usersTbl_kwarg
         )
+        self.usersTbl = usersTbl = UsersTblCls(self, **usersTbl_kwarg)
 
         self.app = app = socketio.WSGIApp(sock,
             static_files = {
@@ -88,7 +94,7 @@ class Server(BaseClientServer):
             except Exception as e:
                 m = {
                     'type': 'error',
-                    'descr': str(e),
+                    'descr': fmtExc(e, inclTraceback=self.debug),
                 }
                 sma = self.SMAClass(self, sid, [m])
                 sma.send()

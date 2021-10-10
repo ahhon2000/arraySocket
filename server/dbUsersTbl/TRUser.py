@@ -21,7 +21,7 @@ class TRUser(TableRow):
         if loadKeys:
             if not self.id: raise Exception(f'id not set')
             q = self._dbobj
-            tbl = self._bindObject.authKeysTableName
+            tbl = self._bindObject.TRAuthKey._tableName
 
             rowToKey = lambda r: r['authKey']
             authKeys = q(Id=self.id, aslist=True) / rowToKey /f"""

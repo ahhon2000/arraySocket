@@ -12,13 +12,14 @@ class TRAuthKey(TableRow):
         },
     }
 
-    def _getDynamicConstraints(self):
+    @classmethod
+    def _getDynamicConstraints(Cls):
         cs = super()._getDynamicConstraints()
         cs.update({
             DBTYPES.mysql: [
                 f"""
-                    CONSTRAINT `fk_user` FOREIGN KEY (`user`)
-                    REFERENCES `{self._usersTableName}`(`id`)
+                    CONSTRAINT `fk_auth_key` FOREIGN KEY (`user`)
+                    REFERENCES `{Cls._usersTableName}`(`id`)
                     ON DELETE CASCADE
                 """,
             ],

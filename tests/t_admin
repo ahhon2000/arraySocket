@@ -8,6 +8,9 @@ import time
 from threading import Thread, Event, Condition
 from itertools import chain
 
+from handyPyUtil.db import Database_mysql
+from handyPyUtil.loggers.convenience import fmtExc
+
 from arraySocket import client, server, ASUser
 from . import TestKitAS
 from ..server.ServerMessageArray import SRV_ERR_MSG_CODES
@@ -188,15 +191,44 @@ def doTest(case):
                     userGotErrorFromSrv(cli, gl, m)
 
         UsersTblCls = case['UsersTblCls']
+        usersTbl_kwarg = {}
+        maxInitSec = 0.1   # seconds to wait while the server initialises
+        if UsersTblCls is UsersTbl:
+            usersTbl_kwarg.update({
+                'authUsersInMem': True,
+                'staticUsers': [d['user'] for d in cliDicts.values()],
+            })
+        elif issubclass(UsersTblCls, DBUsersTbl):
+            class UsersTblCls(UsersTblCls):
+                def __init__(self, *arg, **kwarg):
+                    tk.logger.debug('Initialising DBUsersTbl')
+                    try:
+                        tk.logger.debug('Getting a dbobj for DBUsersTbl')
+                        dbobj = tk.connect(DBCls=Database_mysql)
+                        tk.logger.debug('calling DBUsersTbl.__init__()')
+                        super().__init__(*arg, dbobj=dbobj, **kwarg)
+
+                        ak = next(iter(cliDicts['admin']['user'].authKeys))
+                        tk.logger.debug(f"adding the admin's key: {ak}")
+                        self.addAuthKey('admin', ak)
+
+                        tk.logger.info(f"DBUsersTbl initialised!")
+                    except Exception as e:
+                        msg = fmtExc(e, inclTraceback=True)
+                        tk.logger.error(msg)
+            usersTbl_kwarg.update({
+                'staticUsers': [cliDicts['admin']['user']],
+            })
+            maxInitSec = 0.3
+        else: raise Exception(f'unsupported UsersTblCls={type(UsersTblCls)}')
+
         srvProc = tk.startServer(
             SMAClass=SMAClass_srv,
             CMAClass=CMAClass_srv,
             UsersTblCls = UsersTblCls,
-            authUsersInMem = True if UsersTblCls is UsersTbl else False,
-            staticUsers = [d['user'] for d in cliDicts.values()],
-            
+            usersTbl_kwarg = usersTbl_kwarg,
         )
-        time.sleep(0.1)
+        time.sleep(maxInitSec)
 
         for n, cliDict in cliDicts.items():
             u = cliDict['user']
@@ -219,6 +251,7 @@ def doTest(case):
                 assert ev.isSet()
             assert not cliDict['waitingForAccessDenied'].isSet()
 
+
 cases = [
     {
         'NUsers': NUsers,
@@ -226,7 +259,7 @@ cases = [
     }
         for NUsers in (
             1,
-            10,  # TODO uncomment
+            #10,  # TODO uncomment
         )
             for UsersTblCls in (
                 #UsersTbl,  # TODO uncomment

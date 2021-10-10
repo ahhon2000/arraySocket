@@ -12,9 +12,11 @@ class DBUsersTbl(UsersTbl):
         # TODO sent a message in a specified interval
 
         if not dbobj: raise Exception(f'dbobj undefined')
-        if not TableRowCls: raise Exception(f'TableRowCls undefined')
         self.dbobj = dbobj
         self.q = dbobj
+        super().__init__(*arg, **kwarg)
+
+        self.logger.debug(f'initialising DBUsersTbl')
 
         from . import TRUser, TRAuthKey, TRAuthUser
 
@@ -32,7 +34,8 @@ class DBUsersTbl(UsersTbl):
             _usersTableName = usersTableName # necessary for dynamic constraints
         self.TRAuthUser = TRAuthUser
 
-        super().__init__(*arg, **kwarg)
+        for Cls in (TRUser, TRAuthKey, TRAuthUser):
+            dbobj.createTable(Cls)
 
     def lookupUser(self, name):
         q = self.q
@@ -46,7 +49,7 @@ class DBUsersTbl(UsersTbl):
         tru = self.TRUser._fromColVal(self, 'name', u.name)
         if not tru: raise Exception(f'user "{u.name}" does not exist')
 
-        q(uid=tru.id, sid=sid) / """
+        q(uid=tru.id, sid=sid) / f"""
             INSERT INTO `{self.TRAuthUser._tableName}`
             (user, sid)
             VALUES (%(uid)s, %(sid)s)
@@ -54,15 +57,17 @@ class DBUsersTbl(UsersTbl):
 
     def lookupAuthUser(self, sid):
         q = self.q
-        trus = q(sid=sid) / """
+        trus = q(aslist=True, sid=sid, bindObject=self) / self.TRUser / f"""
             SELECT u.*
             FROM
-                `{self.TRUser._tableName` u,
+                `{self.TRUser._tableName}` u
+                INNER JOIN
                 `{self.TRAuthUser._tableName}` au
             ON
                 u.id = au.user
             WHERE
                 au.sid = %(sid)s
+            LIMIT 1
         """
         if not trus: return None
 
@@ -71,14 +76,14 @@ class DBUsersTbl(UsersTbl):
 
     def rmAuthUser(self, sid):
         q = self.q
-        q(sid=sid) / """
+        q(sid=sid) / f"""
             DELETE FROM `{self.TRAuthUser._tableName}`
             WHERE sid = %(sid)s
         """
 
     def logoutUser(self, name):
         q = self.q
-        q(name=name) / """
+        q(name=name) / f"""
             DELETE FROM `{self.TRAuthUser._tableName}`
             WHERE
                 user = (
@@ -97,16 +102,18 @@ class DBUsersTbl(UsersTbl):
         u = tru._toASUser()
 
         if authKey not in u.authKeys:
-            q(uid, authKey=authKey) / """
-                INSERT INTO `self.TRAuthKey._tableName`
+            uid = tru.id
+            if not uid: raise Exception(f'uid undefined')
+            q(uid=uid, authKey=authKey) / f"""
+                INSERT INTO `{self.TRAuthKey._tableName}`
                 (user, authKey)
                 VALUES (%(uid)s, %(authKey)s)
             """
 
     def rmAuthKey(self, name, authKey):
         q = self.q
-        q(name=name, authKey=authKey) / """
-            DELETE FROM `self.TRAuthKey._tableName`
+        q(name=name, authKey=authKey) / f"""
+            DELETE FROM `{self.TRAuthKey._tableName}`
             WHERE
                 user = (
                     SELECT u.id FROM `{self.TRUser._tableName}` u
@@ -118,7 +125,7 @@ class DBUsersTbl(UsersTbl):
 
     def rmAllAuthKeys(self, name):
         q = self.q
-        q(name=name) / """
+        q(name=name) / f"""
             DELETE FROM `{self.TRAuthKey._tableName}`
             WHERE
                 user = (
