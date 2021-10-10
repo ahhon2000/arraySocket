@@ -23,7 +23,8 @@ class TRUser(TableRow):
             q = self._dbobj
             tbl = self._bindObject.authKeysTableName
 
-            authKeys = q(Id=self.id, aslist=True) / lambda r: r['authKey'] /f"""
+            rowToKey = lambda r: r['authKey']
+            authKeys = q(Id=self.id, aslist=True) / rowToKey /f"""
                 SELECT `authKey` FROM `{tbl}`
                 WHERE `user` = %(Id)s
             """

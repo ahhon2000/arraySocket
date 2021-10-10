@@ -1,4 +1,4 @@
-from . import UsersTbl
+from .. import UsersTbl
 
 class DBUsersTbl(UsersTbl):
     def __init__(self, *arg,
