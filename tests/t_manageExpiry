@@ -1,0 +1,62 @@
+#!/usr/bin/python3
+try:from pathlib import Path as P;R=P.resolve;E=P.exists; F = R(P(__file__));\
+    L = lambda p: p / 'cfg.py'; from handyPyUtil import A; exec(A)
+except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
+
+import sys, os
+import time
+from threading import Thread, Event
+from pathlib import Path
+from more_itertools import first
+
+from .. import client, server
+from . import TestKitAS
+
+from ..server import UsersTbl
+from ..server.dbUsersTbl import DBUsersTbl
+from .spawnUsers import spawnUsers
+
+MYSQL_CNF = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
+
+
+def doTest(case):
+    with TestKitAS() as tk:
+        cliDicts = spawnUsers(case['NUsers'])
+
+        UsersTblCls = case['UsersTblCls']
+
+        usersTbl_kwarg = {}
+        srv_kwarg = {
+            'UsersTblCls': UsersTblCls,
+            'usersTbl_kwarg': usersTbl_kwarg,
+        }
+
+        if UsersTblCls is UsersTbl:
+            usersTbl_kwarg.update({
+                'authUsersInMem': True,
+                'staticUsers': [d['user'] for d in cliDicts.values()],
+            })
+        elif issubclass(UsersTblCls, DBUsersTbl):
+            srv_kwarg.update({
+                'adminAuthKey': first(cliDicts['admin']['user'].authKeys),
+                'read_default_file': MYSQL_CNF,
+            })
+        else: raise Exception(f'unsupported UsersTblCls={type(UsersTblCls)}')
+
+        tk.startServer(**srv_kwarg)
+        time.sleep(case['maxInitSec'])
+
+cases = [
+    {
+        'NUsers': 10,
+        'UsersTblCls': UsersTbl,
+        'maxInitSec': 0.1
+    }, {
+        'NUsers': 10,
+        'UsersTblCls': DBUsersTbl,
+        'maxInitSec': 0.3
+    },
+]
+
+for case in cases:
+    doTest(case)

@@ -17,6 +17,8 @@ from ..server.ServerMessageArray import SRV_ERR_MSG_CODES
 from ..server import UsersTbl
 from ..server.dbUsersTbl import DBUsersTbl
 
+from .spawnUsers import spawnUsers
+
 
 def execAdminCmd(gl, n, cmd, cb=None, relogin=True):
     gl['adminLoggedIn'].wait(timeout=0.2)
@@ -118,28 +120,13 @@ def userOnAuth(cli, gl, authst):
 
 
 def initUsers(gl):
-    NUsers = gl['case']['NUsers']
+    cliDicts = spawnUsers(gl['case']['NUsers'])
 
-    class IASUser(ASUser):
-        def __init__(self, *arg, index=None, **kwarg):
-            super().__init__(*arg, **kwarg)
-            self.index = index
-
-    us = {
-        n: IASUser(name=n, authKeys=(k,), isAdmin=ia, index=i)
-            for n, k, ia, i in chain(
-                (('admin', 'adminsecret', True, None),),
-                ((f'user{i}', '', False, i) for i in range(NUsers)),
-            )
-    }
-
-    cliDicts = {
-        n: {
-            'user': u,
+    for n, cliDict in cliDicts.items():
+        cliDict.update({
             'authSteps': tuple(Event() for step in range(5)),
             'waitingForAccessDenied': Event(),
-        } for n, u in us.items()
-    }
+        })
 
     return cliDicts
 

@@ -74,7 +74,7 @@ class DBUsersTbl(UsersTbl):
         q = self.q
 
         for sid in renew_sids:
-            expirySec = now + self.idleSessionDurSec
+            expirySec = round(now + self.idleSessionDurSec)
             q(sid=sid, expirySec=expirySec) / f"""
                 UPDATE `{self.TRAuthUser._tableName}`
                 SET
