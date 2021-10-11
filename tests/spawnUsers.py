@@ -1,3 +1,5 @@
+from threading import Event
+
 from itertools import chain
 from .. import ASUser
 
@@ -24,6 +26,7 @@ def spawnUsers(N, andAdmin=True, adminAuthKey='adminsecret'):
     cliDicts = {
         n: {
             'user': u,
+            'loggedIn': Event(),
         } for n, u in us.items()
     }
 

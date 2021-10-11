@@ -9,6 +9,8 @@ from threading import Thread, Event
 from pathlib import Path
 from more_itertools import first
 
+from handyPyUtil.classes import DictToObj
+
 from .. import client, server
 from . import TestKitAS
 
@@ -18,44 +20,145 @@ from .spawnUsers import spawnUsers
 
 MYSQL_CNF = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
 
+def execAdminCmd(gl, n, cmd, cb=None, relogin=False):
+    cliDicts = gl.cliDicts
+    admLoggedIn = cliDicts['admin']['loggedIn'].wait(timeout=0.2)
+    assert admLoggedIn
+
+    admCli = cliDicts['admin']['cli']
+
+    k = first(cliDicts[n]['user'].authKeys)
+
+    def onResponse(m):
+        st = m.get('status', 63)
+        assert st == 0, f"status={st}: {m.get('descr')}"
+        if cb: cb()
+        if relogin:
+            cliDicts[n]['loggedIn'].wait(timeout=0.2)
+            cli = cliDicts[n]['cli']
+            cli.login()
+
+    m = {
+        'type': 'admin',
+        'command': cmd,
+        'user': n,
+        'authKey': k,
+        'callback': onResponse,
+    }
+
+    admCli.pushMessage(m)
+    admCli.sendMessages()
+
+
+def startServer(gl):
+    case = gl.case
+    tk = gl.tk
+    cliDicts = gl.cliDicts
+
+    UsersTblCls = case.UsersTblCls
+
+    usersTbl_kwarg = {}
+    srv_kwarg = {
+        'UsersTblCls': UsersTblCls,
+        'usersTbl_kwarg': usersTbl_kwarg,
+        'adminAuthKey': first(cliDicts['admin']['user'].authKeys),
+    }
+
+    if UsersTblCls is UsersTbl:
+        usersTbl_kwarg.update({
+            'authUsersInMem': True,
+        })
+    elif issubclass(UsersTblCls, DBUsersTbl):
+        srv_kwarg.update({
+            'read_default_file': MYSQL_CNF,
+        })
+    else: raise Exception(f'unsupported UsersTblCls={type(UsersTblCls)}')
+
+    tk.startServer(**srv_kwarg)
+    time.sleep(case.maxInitSec)
+
+def registerUsers(gl):
+    cliDicts = gl.cliDicts
+    cliDicts['admin']['loggedIn'].wait(0.2)
+
+    registered = []
+    for n, cliDict in cliDicts.items():
+        if n == 'admin': continue
+
+        r = Event()
+        def cb(r=r): r.set()
+        execAdminCmd(gl, n, "addAuthKey", cb=cb)
+
+    for r in registered: r.wait(0.2)
+
+def adminOnAuth(cli, gl, authst):
+    "Admin actions after authentication go here"
+
+    assert cli.user == 'admin'
+
+def userOnAuth(cli, gl, authst):
+    "Client actions after authentication go here"
+
+    pass
+    #for m in cli.waitForMessages():
+
+def startClients(gl, ns):
+    class SMAClass_cli(client.ServerMessageArray):
+        def on_auth(self, m):
+            authst = super().on_auth(m)
+            cli = self.cli
+            cliDict = gl.cliDicts[cli.user]
+            cliDict['cli'] = cli
+
+            cli.logger.info(f'received an auth message from the server; user={cli.user}; status={authst}')
+
+            if authst.status == 0:
+                cliDict['loggedIn'].set()
+
+            if cli.user == 'admin':
+                adminOnAuth(cli, gl, authst)
+            else:
+                userOnAuth(cli, gl, authst)
+
+    cliDicts = gl.cliDicts
+    tk = gl.tk
+
+    for n in ns:
+        cliDict = cliDicts[n]
+        u = cliDict['user']
+        cli, thCli = tk.startClient(SMAClass=SMAClass_cli, user=u)
+        cliDict.update({'cli': cli, 'thCli': thCli})
+
+def initCliSrv(gl):
+    cliDicts = gl.cliDicts
+
+    startServer(gl)
+    startClients(gl, ('admin',))
+    registerUsers(gl)
+    startClients(gl, tuple(n for n in cliDicts if n != 'admin'))
 
 def doTest(case):
     with TestKitAS() as tk:
-        cliDicts = spawnUsers(case['NUsers'])
+        cliDicts = spawnUsers(case.NUsers)
+        gl = DictToObj({
+            'case': case,
+            'cliDicts': cliDicts,
+            'tk': tk,
+        })
 
-        UsersTblCls = case['UsersTblCls']
-
-        usersTbl_kwarg = {}
-        srv_kwarg = {
-            'UsersTblCls': UsersTblCls,
-            'usersTbl_kwarg': usersTbl_kwarg,
-        }
-
-        if UsersTblCls is UsersTbl:
-            usersTbl_kwarg.update({
-                'authUsersInMem': True,
-                'staticUsers': [d['user'] for d in cliDicts.values()],
-            })
-        elif issubclass(UsersTblCls, DBUsersTbl):
-            srv_kwarg.update({
-                'adminAuthKey': first(cliDicts['admin']['user'].authKeys),
-                'read_default_file': MYSQL_CNF,
-            })
-        else: raise Exception(f'unsupported UsersTblCls={type(UsersTblCls)}')
-
-        tk.startServer(**srv_kwarg)
-        time.sleep(case['maxInitSec'])
+        initCliSrv(gl)
 
 cases = [
-    {
+    DictToObj({
         'NUsers': 10,
         'UsersTblCls': UsersTbl,
         'maxInitSec': 0.1
-    }, {
+    }),
+    DictToObj({
         'NUsers': 10,
         'UsersTblCls': DBUsersTbl,
         'maxInitSec': 0.3
-    },
+    }),
 ]
 
 for case in cases:

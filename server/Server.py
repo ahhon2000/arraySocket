@@ -5,7 +5,7 @@ from enum import Enum
 
 from .. import BaseClientServer
 from handyPyUtil.loggers.convenience import fmtExc
-from handyPyUtil.classes import DictToObject
+from handyPyUtil.classes import DictToObj
 
 DEFAULT_PORT = 5490
 DEFAULT_PORT2 = 5491
@@ -73,7 +73,7 @@ class Server(BaseClientServer):
 
         super().__init__(isServer=True, **kwarg)
 
-        ik = DictToObject(locals())
+        ik = DictToObj(locals())
 
         self._initAdminInterface(ik)
         self._initUsersTbl(ik)
@@ -128,9 +128,12 @@ class Server(BaseClientServer):
 
 
         self.usersTbl = ik.usersTbl = ik.UsersTblCls(self, **ik.usersTbl_kwarg)
+        self.logger.debug(f'initialised the users table')
+
         if ik.adminAuthKey:
             ik.usersTbl.rmAllAuthKeys('admin')
             ik.usersTbl.addAuthKey('admin', ik.adminAuthKey, isAdmin=True)
+            self.logger.debug(f'added a key for user "admin"')
 
     def _setupSocketHandlers(self):
         sock = self.sock
