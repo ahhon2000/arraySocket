@@ -26,6 +26,9 @@ class ServerMessageArray(BaseMessageArray):
         typ = m.get('type')
 
         with cli.concur:
+            for mq in cli.concur.listeners.values():
+                mq.put(m)
+
             if typ not in cli.concur.MSG_TYPES_SRV: 
                 self.logger.warning(f'unsupported server message type: {typ}')
 

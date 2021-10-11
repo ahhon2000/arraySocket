@@ -89,7 +89,10 @@ def registerUsers(gl):
         def cb(r=r): r.set()
         execAdminCmd(gl, n, "addAuthKey", cb=cb)
 
-    for r in registered: r.wait(0.2)
+    for r in registered:
+        rst = r.wait(0.2)
+        if not rst:
+            tk.logger.error(f'user was not registered!')
 
 def adminOnAuth(cli, gl, authst):
     "Admin actions after authentication go here"
@@ -99,8 +102,11 @@ def adminOnAuth(cli, gl, authst):
 def userOnAuth(cli, gl, authst):
     "Client actions after authentication go here"
 
-    pass
-    #for m in cli.waitForMessages():
+    tk = gl.tk
+
+    for m in cli.listenToMessages(timeout=3):
+        if m is None: break
+        tk.logger.debug(f'got message: {m}')  # TODO rm
 
 def startClients(gl, ns):
     class SMAClass_cli(client.ServerMessageArray):
@@ -119,6 +125,8 @@ def startClients(gl, ns):
                 adminOnAuth(cli, gl, authst)
             else:
                 userOnAuth(cli, gl, authst)
+
+        def on_admin(self, m): pass
 
     cliDicts = gl.cliDicts
     tk = gl.tk
@@ -139,7 +147,7 @@ def initCliSrv(gl):
 
 def doTest(case):
     with TestKitAS() as tk:
-        cliDicts = spawnUsers(case.NUsers)
+        cliDicts = spawnUsers(case.NUsers, genAuthKeys=True)
         gl = DictToObj({
             'case': case,
             'cliDicts': cliDicts,
@@ -154,11 +162,12 @@ cases = [
         'UsersTblCls': UsersTbl,
         'maxInitSec': 0.1
     }),
-    DictToObj({
-        'NUsers': 10,
-        'UsersTblCls': DBUsersTbl,
-        'maxInitSec': 0.3
-    }),
+    # TODO uncomment all
+    #DictToObj({
+    #    'NUsers': 10,
+    #    'UsersTblCls': DBUsersTbl,
+    #    'maxInitSec': 0.3
+    #}),
 ]
 
 for case in cases:

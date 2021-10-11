@@ -1,4 +1,5 @@
 import threading
+from queue import Queue, Empty
 import time
 import socketio
 
@@ -28,6 +29,7 @@ class Client(BaseClientServer):
 
             concur.clientMessageArrays = {}
             concur.curCliMessageArray = None
+            concur.listeners = {}  # format: Queue_id: Queue
 
         self.newClientMessageArray()
 
@@ -104,6 +106,36 @@ class Client(BaseClientServer):
             cma = concur.curCliMessageArray
             cma.send()
             self.newClientMessageArray()
+
+    def listenToMessages(self, timeout=None):
+        """Return an iterator over all messages in the order they are processed
+
+        The iterator blocks if the message queue is empty. If a timeout in
+        seconds is specified then upon hitting that timeout, None will
+        be yielded and the iterator will stop.
+
+        This method is thread-safe and can be called any number of times from
+        any number of threads.
+        """
+
+        concur = self.concur
+        mqkey = None
+        try:
+            with concur:
+                mq = Queue()
+                mqkey = id(mq)
+                concur.listeners[mqkey] = mq
+
+            while True:
+                try:
+                    m = mq.get(timeout=timeout)
+                except Empty:
+                    m = None
+                yield m
+                if m is None: break
+        finally:
+            with concur:
+                concur.listeners.pop(mqkey, None)
 
     def run(self):
         firstConnect = True

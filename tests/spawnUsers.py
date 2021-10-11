@@ -3,7 +3,9 @@ from threading import Event
 from itertools import chain
 from .. import ASUser
 
-def spawnUsers(N, andAdmin=True, adminAuthKey='adminsecret'):
+def spawnUsers(N, andAdmin=True, adminAuthKey='adminsecret',
+    genAuthKeys = False,
+):
     class IASUser(ASUser):
         def __init__(self, *arg, index=None, **kwarg):
             super().__init__(*arg, **kwarg)
@@ -15,7 +17,14 @@ def spawnUsers(N, andAdmin=True, adminAuthKey='adminsecret'):
             (('admin', adminAuthKey, True, None),),
         )
     useq.append(
-        ((f'user{i}', '', False, i) for i in range(N)),
+        (
+            (
+                f'user{i}',
+                f'usersecret_{i}' if genAuthKeys else '',
+                False, i
+            )
+                for i in range(N)
+        ),
     )
 
     us = {

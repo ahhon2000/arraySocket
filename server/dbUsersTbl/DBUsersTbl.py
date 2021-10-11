@@ -65,7 +65,7 @@ class DBUsersTbl(UsersTbl):
         frequently than once in secBtwExpiryCleanups seconds in order to
         reduce the number of DB writing operations.
 
-        Options renew_sids and rm_sids have an immediate effect.
+        Options renew_sids and rm_sids have immediate effect.
         """
 
         # TODO write a test for manageExpiry(): 1) this class; 2) parent class
