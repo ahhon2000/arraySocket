@@ -35,44 +35,44 @@ def getUser(utbl, name):
     return u
 
 def doTest():
-    # Check if the server's users table can connect to a MySQL DB
 
-    srv = server.Server(
-        UsersTblCls = DBUsersTbl,
-        usersTbl_kwarg = {
-            'db_kwarg': {
-                'read_default_file': str(MYSQL_CNF),
+    for srv_kwarg in (
+        {
+            # Check if the server's users table can connect to a MySQL DB
+            'UsersTblCls': DBUsersTbl,
+            'usersTbl_kwarg': {
+                'db_kwarg': {
+                    'read_default_file': str(MYSQL_CNF),
+                },
             },
-        },
-    )
+        }, {
+            # Check if the Server constructor understands shorcut options
+            'usersStorage': 'db',
+            'read_default_file': str(MYSQL_CNF),
+            'adminAuthKey': 'mysecret2983',
+        }
+    ):
+        srv = server.Server(**srv_kwarg)
 
-    assert isinstance(srv.usersTbl, DBUsersTbl)
-    q = srv.usersTbl.dbobj
-    assert isinstance(q, Database_mysql)
-    assert (q[0]['x'] / "SELECT 1 as x") == 1
+        adminAuthKey = srv_kwarg.get('adminAuthKey')
+        if srv_kwarg.get('UsersTblCls') is DBUsersTbl:
+            adminAuthKey = 'mysecret554'
+            srv.usersTbl.addAuthKey('admin', adminAuthKey, isAdmin=True)
 
-    srv.usersTbl.addAuthKey('admin', 'mysecret', isAdmin=True)
-    u = getUser(srv.usersTbl, 'admin')
-    assert u.name == 'admin'
-    assert 'mysecret' in u.authKeys
+        assert isinstance(srv.usersTbl, DBUsersTbl)
+        q = srv.usersTbl.dbobj
+        assert isinstance(q, Database_mysql)
+        assert (q[0]['x'] / "SELECT 1 as x") == 1
 
-    # Check if the Server constructor understands shorcut options
+        u = getUser(srv.usersTbl, 'admin')
+        assert u.name == 'admin'
+        assert adminAuthKey in u.authKeys
 
-    srv = server.Server(
-        usersStorage = 'db',
-        read_default_file = str(MYSQL_CNF),
-        adminAuthKey = 'mysecret2',
-    )
+        if srv_kwarg.get('usersStorage') == 'db':
+            assert len(u.authKeys) == 1
+            assert first(u.authKeys) == adminAuthKey
+            assert u.isAdmin
 
-    assert isinstance(srv.usersTbl, DBUsersTbl)
-    q = srv.usersTbl.dbobj
-    assert isinstance(q, Database_mysql)
-
-    u = getUser(srv.usersTbl, 'admin')
-
-    assert len(u.authKeys) == 1
-    assert u.name == 'admin'
-    assert first(u.authKeys) == 'mysecret2'
-    assert u.isAdmin
+        q.close()
 
 doTest()
