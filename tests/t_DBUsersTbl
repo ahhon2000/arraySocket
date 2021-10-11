@@ -35,7 +35,6 @@ def getUser(utbl, name):
     return u
 
 def doTest():
-
     for srv_kwarg in (
         {
             # Check if the server's users table can connect to a MySQL DB
@@ -50,13 +49,18 @@ def doTest():
             'usersStorage': 'db',
             'read_default_file': str(MYSQL_CNF),
             'adminAuthKey': 'mysecret2983',
-        }
+        }, {
+            # Check if the Server constructor accepts a DB instance for UsersTbl
+            'usersStorage': 'db',
+            'adminAuthKey': 'mysecret3849',
+            'dbobj': Database_mysql(read_default_file=str(MYSQL_CNF)),
+        },
     ):
         srv = server.Server(**srv_kwarg)
 
         adminAuthKey = srv_kwarg.get('adminAuthKey')
         if srv_kwarg.get('UsersTblCls') is DBUsersTbl:
-            adminAuthKey = 'mysecret554'
+            adminAuthKey = 'mysecret154'
             srv.usersTbl.addAuthKey('admin', adminAuthKey, isAdmin=True)
 
         assert isinstance(srv.usersTbl, DBUsersTbl)

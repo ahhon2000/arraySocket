@@ -5,6 +5,7 @@ from enum import Enum
 
 from .. import BaseClientServer
 from handyPyUtil.loggers.convenience import fmtExc
+from handyPyUtil.classes import DictToObject
 
 DEFAULT_PORT = 5490
 DEFAULT_PORT2 = 5491
@@ -36,6 +37,7 @@ class ServerErrorAccessDenied(ServerError):
 class Server(BaseClientServer):
     def __init__(self,
         usersStorage = 'db',
+        dbobj = None,
         read_default_file = None,
         adminAuthKey = '',
         staticUsers = (),
@@ -53,69 +55,82 @@ class Server(BaseClientServer):
         the users table. Note that if UsersTBlCls is supplied it will
         override whatever value the usersStorage parameter has.
 
+        The argument `dbobj' can be supplied to give the users table a Database
+        instance to work with. If `dbobj' is not given a new Database object
+        will be initialised.
+
+        UsersTblCls can be given, optionally along with keyword arguments
+        `usersTbl_kwarg' to pass on to its constructor.
+
         For a database users table storage method, a *.cnf file can be specified
         as the `read_default_file' argument. This file will be used for
         database initialisation. It can be a string or a Path object.
 
-        UsersTblCls can be given along with keyword arguments to pass on to
-        its constructor (usersTbl_kwarg).
-
-        If adminAuthKey is given and is not empty add this string to the set of
+        If adminAuthKey is given and is not empty add that string to the set of
         keys of user `admin'. If user `admin' doesn't exist create it.
         All previous keys (if any) will be removed.
         """
 
         super().__init__(isServer=True, **kwarg)
 
+        ik = DictToObject(locals())
+
+        self._initAdminInterface(ik)
+        self._initUsersTbl(ik)
+
         if allowCors:
             self.sock_kwarg['cors_allowed_origins'] = '*'
 
-        # init the admin interface
-
-        if not AdminInterfaceCls:
-            from . import AdminInterface
-            AdminInterfaceCls = AdminInterface
-        self.adminInterface = adminInterface = AdminInterfaceCls(self)
+        # Init the socket and the app object
 
         self.sock = sock = socketio.Server(**self.sock_kwarg)
         self._setupSocketHandlers()
-
-        # init the users table
-
-        if not UsersTblCls:
-            if usersStorage == 'memory':
-                from . import UsersTbl
-                UsersTblCls = UsersTbl
-            elif usersStorage == 'db':
-                from .dbUsersTbl import DBUsersTbl
-                UsersTblCls = DBUsersTbl
-            else: raise Exception(f'unsupported value of argument "usersStorage": {usersStorage}')
-
-        usersTbl_kwarg = dict(
-            {
-                'staticUsers': staticUsers,
-                'authEveryone': authEveryone,
-                'authUsersInMem': authUsersInMem,
-            },
-            **usersTbl_kwarg
-        )
-
-        if read_default_file:
-            usersTbl_kwarg.setdefault('db_kwarg', {})
-            usersTbl_kwarg['db_kwarg']['read_default_file'] = str(read_default_file)
-
-        self.usersTbl = usersTbl = UsersTblCls(self, **usersTbl_kwarg)
-        if adminAuthKey:
-            usersTbl.rmAllAuthKeys('admin')
-            usersTbl.addAuthKey('admin', adminAuthKey, isAdmin=True)
-
-        # Init the app object
 
         self.app = app = socketio.WSGIApp(sock,
             static_files = {
                 '/': {'content_type': 'text/html', 'filename': 'index.html'},
             }
         )
+
+    def _initAdminInterface(self, ik):
+        if not ik.AdminInterfaceCls:
+            from . import AdminInterface
+            ik.AdminInterfaceCls = AdminInterface
+        self.adminInterface = ik.adminInterface = ik.AdminInterfaceCls(self)
+
+    def _initUsersTbl(self, ik):
+        if ik.dbobj and ik.read_default_file: raise Exception(f'keyword arguments dbobj, read_default_file are incompatible')
+        if ik.dbobj and ik.UsersTblCls: raise Exception(f'keyword arguments dbobj, UsersTblCls are incompatible')
+
+        if not ik.UsersTblCls:
+            if ik.usersStorage == 'memory':
+                from . import UsersTbl
+                ik.UsersTblCls = UsersTbl
+            elif ik.usersStorage == 'db':
+                from .dbUsersTbl import DBUsersTbl
+                ik.UsersTblCls = DBUsersTbl
+            else: raise Exception(f'unsupported value of argument "usersStorage": {usersStorage}')
+
+        ik.usersTbl_kwarg = dict(
+            {
+                'staticUsers': ik.staticUsers,
+                'authEveryone': ik.authEveryone,
+                'authUsersInMem': ik.authUsersInMem,
+            },
+            **ik.usersTbl_kwarg
+        )
+
+        if ik.read_default_file:
+            ik.usersTbl_kwarg.setdefault('db_kwarg', {})
+            ik.usersTbl_kwarg['db_kwarg']['read_default_file'] = str(ik.read_default_file)
+        if ik.dbobj:
+            ik.usersTbl_kwarg['dbobj'] = ik.dbobj
+
+
+        self.usersTbl = ik.usersTbl = ik.UsersTblCls(self, **ik.usersTbl_kwarg)
+        if ik.adminAuthKey:
+            ik.usersTbl.rmAllAuthKeys('admin')
+            ik.usersTbl.addAuthKey('admin', ik.adminAuthKey, isAdmin=True)
 
     def _setupSocketHandlers(self):
         sock = self.sock
