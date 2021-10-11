@@ -103,8 +103,9 @@ def userOnAuth(cli, gl, authst):
     "Client actions after authentication go here"
 
     tk = gl.tk
+    tk.logger.debug(f'entering userOnAuth()')
 
-    for m in cli.listenToMessages(timeout=3):
+    for m in cli.listenToMessages(timeout=10):
         if m is None: break
         tk.logger.debug(f'got message: {m}')  # TODO rm
 
@@ -152,13 +153,16 @@ def doTest(case):
             'case': case,
             'cliDicts': cliDicts,
             'tk': tk,
+            'success': Event(),
         })
 
         initCliSrv(gl)
+        gl.success.wait(3 + gl.case.NUsers * 0.3)
+        assert gl.success.isSet()
 
 cases = [
     DictToObj({
-        'NUsers': 10,
+        'NUsers': 1,  # TODO set to 10
         'UsersTblCls': UsersTbl,
         'maxInitSec': 0.1
     }),
