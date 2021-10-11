@@ -1,3 +1,5 @@
+import time
+
 from handyPyUtil.db import Database_mysql
 
 from .. import UsersTbl
@@ -13,6 +15,7 @@ class DBUsersTbl(UsersTbl):
         usersTableName = 'array_server_users',
         authUsersTableName = 'array_server_auth_users',
         authKeysTableName = 'array_server_auth_keys',
+        secBtwExpiryCleanups = 60,
         **kwarg
     ):
         """Initialise an DBUsersTbl instance
@@ -21,9 +24,6 @@ class DBUsersTbl(UsersTbl):
         DFLT_DB_CLASS object. In the latter case, db_kwarg is passed on as
         keyword arguments to the DFLT_DB_CLASS constructor.
         """
-
-        # TODO devise a mechanism to logout users who have not
-        # TODO sent a message in a specified interval
 
         super().__init__(*arg, **kwarg)
 
@@ -34,6 +34,10 @@ class DBUsersTbl(UsersTbl):
 
         self.dbobj = dbobj
         self.q = dbobj
+
+        if secBtwExpiryCleanups <= 0: raise Exception(f'illegal values of secBtwExpiryCleanups')
+        self.secBtwExpiryCleanups = secBtwExpiryCleanups
+        self._secLastExpiryCleanup = 0
 
         from . import TRUser, TRAuthKey, TRAuthUser
 
@@ -53,6 +57,48 @@ class DBUsersTbl(UsersTbl):
 
         for Cls in (TRUser, TRAuthKey, TRAuthUser):
             dbobj.createTable(Cls)
+
+    def manageExpiry(self, renew_sids=(), rm_sids=()):
+        """Control the expiry of authUser's sessions
+
+        Unlike in the base class, this method cleans up old sessions no more
+        frequently than once in secBtwExpiryCleanups seconds in order to
+        reduce the number of DB writing operations.
+
+        Options renew_sids and rm_sids have an immediate effect.
+        """
+
+        # TODO write a test for manageExpiry(): 1) this class; 2) parent class
+
+        now = round(time.time())
+        q = self.q
+
+        for sid in renew_sids:
+            expirySec = now + self.idleSessionDurSec
+            q(sid=sid, expirySec=expirySec) / f"""
+                UPDATE `{self.TRAuthUser._tableName}`
+                SET
+                    expirySec = %(expirySec)s
+                WHERE
+                    sid = %(sid)s
+            """
+
+        if rm_sids:
+            q(rm_sids=rm_sids) / f"""
+                DELETE FROM `{self.TRAuthUser._tableName}`
+                WHERE
+                    sid in %(rm_sids)s
+            """
+
+        if now - self._secLastExpiryCleanup >= self.secBtwExpiryCleanups:
+            self._secLastExpiryCleanup = now
+
+            q(now=now) / f"""
+                DELETE FROM `{self.TRAuthUser._tableName}`
+                WHERE
+                    expirySec <= %(now)s
+            """
+
 
     def lookupUser(self, name):
         q = self.q
@@ -78,7 +124,9 @@ class DBUsersTbl(UsersTbl):
                 VALUES (%(uid)s, %(sid)s)
             """
 
-    def lookupAuthUser(self, sid):
+        self.manageExpiry(renew_sids=(sid,))
+
+    def lookupAuthUser(self, sid, renewExpiryIfFound=False):
         q = self.q
         trus = q(aslist=True, sid=sid, bindObject=self) / self.TRUser / f"""
             SELECT u.*
@@ -94,6 +142,9 @@ class DBUsersTbl(UsersTbl):
         """
         if not trus: return None
 
+        if renewExpiryIfFound:
+            self.manageExpiry(renew_sids=(sid,))
+
         u = trus[0]._toASUser()
         return u
 
@@ -103,6 +154,8 @@ class DBUsersTbl(UsersTbl):
             DELETE FROM `{self.TRAuthUser._tableName}`
             WHERE sid = %(sid)s
         """
+
+        self.manageExpiry()
 
     def logoutUser(self, name):
         q = self.q
@@ -114,6 +167,8 @@ class DBUsersTbl(UsersTbl):
                     WHERE u.name = %(name)s
                 )
         """
+
+        self.manageExpiry()
 
     def addAuthKey(self, name, authKey, isAdmin=False):
         q = self.q

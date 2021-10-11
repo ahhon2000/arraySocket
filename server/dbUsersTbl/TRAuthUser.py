@@ -10,6 +10,9 @@ class TRAuthUser(TableRow):
         'sid': {
             DBTYPES.mysql: "VARCHAR(128) PRIMARY KEY NOT NULL COLLATE utf8_bin",
         },
+        'expirySec': {
+            DBTYPES.mysql: "BIGINT NOT NULL DEFAULT 0",
+        },
     }
 
     @classmethod

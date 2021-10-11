@@ -70,31 +70,6 @@ class UsersTbl:
 
         return s
 
-    def lookupUser(self, name):
-        "Override this method for custom user lookups. Should return an ASUser"
-
-        return None
-
-    def saveAuthUser(self, sid, u):
-        """Save a sid-user association to an internal table (or elsewhere)
-
-        This method is called once the user has been successfully authenticated
-        to authorise further message arrays from the same socket.
-
-        The sid-user pair will be stored in memory only if the
-        authUsersInMem setting is True.
-
-        For a custom way of handling sid-user pairs (say, with a DB),
-        override this method.
-        """
-
-        if self.authUsersInMem:
-            concur = self.concur
-            with concur:
-                concur.authUsers[sid] = u
-
-        self.manageExpiry(renew_sids=(sid,))
-
     def manageExpiry(self, renew_sids=(), rm_sids=()):
         """Control the expiry of authUser's sessions
 
@@ -125,7 +100,32 @@ class UsersTbl:
 
                 aus = concur.authUsers
                 for sid in sidsToRm:
-                    aus.pop(sid)
+                    aus.pop(sid, None)
+
+    def lookupUser(self, name):
+        "Override this method for custom user lookups. Should return an ASUser"
+
+        return None
+
+    def saveAuthUser(self, sid, u):
+        """Save a sid-user association to an internal table (or elsewhere)
+
+        This method is called once the user has been successfully authenticated
+        to authorise further message arrays from the same socket.
+
+        The sid-user pair will be stored in memory only if the
+        authUsersInMem setting is True.
+
+        For a custom way of handling sid-user pairs (say, with a DB),
+        override this method.
+        """
+
+        if self.authUsersInMem:
+            concur = self.concur
+            with concur:
+                concur.authUsers[sid] = u
+
+        self.manageExpiry(renew_sids=(sid,))
 
     def lookupAuthUser(self, sid, renewExpiryIfFound=False):
         """Search the (internal) table for an authenticated user by their sid
@@ -140,7 +140,7 @@ class UsersTbl:
                 u = concur.authUsers.get(sid)
 
         if u and renewExpiryIfFound:
-            utbl.manageExpiry(renew_sids=(sid,))
+            self.manageExpiry(renew_sids=(sid,))
 
         return u
 
