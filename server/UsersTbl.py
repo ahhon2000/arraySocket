@@ -1,4 +1,5 @@
 from collections import namedtuple
+import time
 
 from handyPyUtil.concur import ConcurSensitiveObjs
 
@@ -11,15 +12,19 @@ class UsersTbl:
         staticUsers = (),
         authEveryone = False,
         authUsersInMem = False,
+        idleSessionDurSec = 7 * 24 * 3600,
     ):
         self.srv = srv
         self.authUsersInMem = authUsersInMem
         self.authEveryone = authEveryone
         self.logger = srv.logger
 
+        self.idleSessionDurSec = idleSessionDurSec
+
         self.concur = concur = ConcurSensitiveObjs(srv.lock)
         with concur:
             concur.authUsers = {}  # format:  sid: ASUser
+            concur.authUsersExpirySec = {}  # format: sid: sec_since_the_Epoch
 
             # Generally, it's a bad idea to maintain a large table of users in
             # memory. The attribute `staticUsers' is meant to consist of a
@@ -88,7 +93,41 @@ class UsersTbl:
             with concur:
                 concur.authUsers[sid] = u
 
-    def lookupAuthUser(self, sid):
+        self.manageExpiry(renew_sids=(sid,))
+
+    def manageExpiry(self, renew_sids=(), rm_sids=()):
+        """Control the expiry of authUser's sessions
+
+        Identify the sessions which have expired and remove them from the table.
+
+        If a sequence of sids is given as renew_sids (or rm_sids) then also
+        renew the sessions with those sids (or remove them from the table).
+
+        This method should be called from:
+            saveAuthUser(), lookupAuthUser(), rmAuthUser(), logoutUser()
+        """
+
+        if self.authUsersInMem:
+            concur = self.concur
+            with concur:
+                now = time.time()
+                sidsToRm = set()
+
+                aues = concur.authUsersExpirySec
+                for sid in renew_sids:
+                    aues[sid] = round(now + self.idleSessionDurSec)
+                for sid in rm_sids:
+                    sidsToRm.add(sid)
+
+                for sid, sec in aues.items():
+                    if sec <= now:
+                        sidsToRm.add(sid)
+
+                aus = concur.authUsers
+                for sid in sidsToRm:
+                    aus.pop(sid)
+
+    def lookupAuthUser(self, sid, renewExpiryIfFound=False):
         """Search the (internal) table for an authenticated user by their sid
 
         Override if a different mechanism of storing sid-user pairs is used.
@@ -99,6 +138,9 @@ class UsersTbl:
             concur = self.concur
             with concur:
                 u = concur.authUsers.get(sid)
+
+        if u and renewExpiryIfFound:
+            utbl.manageExpiry(renew_sids=(sid,))
 
         return u
 
@@ -111,6 +153,7 @@ class UsersTbl:
         concur = self.concur
         with concur:
             concur.authUsers.pop(sid, None)
+        self.manageExpiry(rm_sids=(sid,))
 
     def logoutUser(self, name):
         """Forget all sid's associated with a given user
@@ -128,6 +171,8 @@ class UsersTbl:
 
             for sid in rm_sids:
                 aus.pop(sid, None)
+
+            self.manageExpiry(rm_sids=rm_sids)
 
     def addAuthKey(self, name, authKey, isAdmin=False):
         """Add authKey to the keys of a users

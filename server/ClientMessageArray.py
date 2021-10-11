@@ -21,7 +21,8 @@ class ClientMessageArray(
         self.serverMessageArray = None
         self._newServerMessageArray()
 
-        self.user = u = srv.usersTbl.lookupAuthUser(sid)
+        self.user = u= srv.usersTbl.lookupAuthUser(sid, renewExpiryIfFound=True)
+
         self.isAuthenticated = True if u else False
 
     def _newServerMessageArray(self):
