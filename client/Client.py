@@ -94,11 +94,13 @@ class Client(BaseClientServer):
             cmas = concur.clientMessageArrays
             cmas.pop(cma.ref, None)
 
-    def pushMessage(self, m):
+    def pushMessage(self, m, send=False):
         concur = self.concur
         with concur:
             cma = concur.curCliMessageArray
             cma.pushMessage(m)
+        if send:
+            self.sendMessages()
 
     def sendMessages(self):
         concur = self.concur

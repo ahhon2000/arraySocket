@@ -100,6 +100,7 @@ class UsersTbl:
 
                 aus = concur.authUsers
                 for sid in sidsToRm:
+                    self.logger.debug(f'UsersTbl: remove sid={sid}') # TODO rm
                     aus.pop(sid, None)
 
     def lookupUser(self, name):

@@ -107,28 +107,41 @@ def registerUsers(gl):
         if not rst:
             tk.logger.error(f'user was not registered!')
 
+def synchClock(gl):
+    tk = gl.tk
+    cliDicts = gl.cliDicts
+    for n, cliDict in cliDicts.items():
+        assert cliDict['loggedIn'].wait(0.5)
+    tk.logger.debug(f'clock synchronised at {time.time()}')
+
 def adminOnAuth(cli, gl, authst):
     "Admin actions after authentication go here"
 
     assert cli.user == 'admin'
     assert authst.status == 0
 
+    tk = gl.tk
+    cliDicts = gl.cliDicts
+    synchClock(gl)
+
+    t0 = time.time()
+
     time.sleep(1)
 
     # t = 1 sec
 
-    cliDicts = gl.cliDicts
-
     for n, cliDict in cliDicts.items():
         u = cliDict['user']
         if u.index == 1:
+            tk.logger.debug(f'admin kicks out user {u.name} at t={time.time()-t0}')
             execAdminCmd(gl, n, 'rmAuthUser')
         elif u.index == 2:
+            tk.logger.debug(f'admin kicks out user {u.name} at t={time.time()-t0}')
             execAdminCmd(gl, n, 'logoutUser')
 
-    time.sleep(1)
+    time.sleep(2)
 
-    # t = 2 sec
+    # t = 3 sec
 
     for n, cliDict in sorted(cliDicts.items(), key=lambda it: it[0]):
         if n == 'admin': continue
@@ -141,6 +154,8 @@ def userOnAuth(cli, gl, authst):
     tk = gl.tk
     tk.logger.debug(f'entering userOnAuth()')
     assert authst.status == 0
+
+    synchClock(gl)
 
     n = cli.user
     cliDict = gl.cliDicts[n]
@@ -158,8 +173,7 @@ def userOnAuth(cli, gl, authst):
             cli.pushMessage({
                 'type': 'echo',
                 'callback': cb,
-            })
-            cli.sendMessages()
+            }, send=True)
             if not nxt.wait(0.2):
                 flgFailed = True
                 break
@@ -167,23 +181,42 @@ def userOnAuth(cli, gl, authst):
 
         if not flgFailed:
             cliDict['success'].set()
-    elif u.index == 1:
-        # User 1 is intially authorised but at ~1 sec its session is invalidated
-        # by the admin interface, which should result in failure to get
-        # a response to an echo after t > 1 sec.
+    elif u.index in (1, 2):
+        # Users 1, 2 are intially authorised and keep their sessions alive by
+        # sending messages. At ~1 sec their sessions are
+        # explicitly invalidated by the admin interface, which should result
+        # in failure to get a response to an echo after t > 1 sec.
 
-        time.sleep(1.5)
+        # send messages until t ~= 0.75 sec to make sure our session lasts
+        # until t ~= 1.75 sec
+        t0 = time.time()
+        while time.time() - t0 < 0.75:
+            nxt = Event()
+            def cb(m): nxt.set()
+            cli.pushMessage({'type': 'echo', 'callback': cb}, send=True)
+            assert nxt.wait(0.2)
+            time.sleep(0.1)
+
+        tk.logger.debug(f'user {u.name} sent its last keep-alive message at t={time.time() - t0}')
+
+        # t ~= 0.75 sec
+
+        time.sleep(max(0, 1.5 - (time.time() - t0)))
+
+        tk.logger.debug(f'user {u.name} is about to hit Access Denied at t={time.time() - t0}')
+
+        # t ~= 1.5 sec
 
         nxt = Event()
         def cb(m): nxt.set()
-        cli.pushMessage({
-            'type': 'echo',
-            'callback': cb,
-        })
-        if not nxt.wait(0.2):
-            cliDict['success'].set()
-    elif u.index == 2:
-        pass
+        cli.pushMessage({'type': 'echo', 'callback': cb}, send=True)
+
+        assert not nxt.wait(0.2), f"user {u.name} WAS ABLE to access the server at t={time.time()-t0}, although it shouldn't have"
+
+        tk.logger.debug(f'user {u.name}, as expected, could not access the server at t={time.time() - t0}')
+        cliDict['success'].set()
+
+    else: raise Exception(f'cannot process user {u.name}')
 
     #for m in cli.listenToMessages(timeout=10):
     #    if m is None: break
@@ -239,12 +272,12 @@ def doTest(case):
         })
 
         initCliSrv(gl)
-        gl.testCaseSuccess.wait(3 + gl.case.NUsers * 0.3)
+        gl.testCaseSuccess.wait(3 + gl.case.NUsers * 0.5)
         assert gl.testCaseSuccess.isSet()
 
 cases = [
     DictToObj({
-        'NUsers': 1,  # TODO set to 10
+        'NUsers': 3,  # TODO set to 10
         'UsersTblCls': UsersTbl,
         'maxInitSec': 0.1
     }),
