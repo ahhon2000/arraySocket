@@ -68,7 +68,7 @@ def startServer(gl):
     UsersTblCls = case.UsersTblCls
 
     usersTbl_kwarg = {
-        'idleSessionDurSec': 1,
+        'idleSessionDurSec': 2,
     }
     srv_kwarg = {
         'UsersTblCls': UsersTblCls,
@@ -114,6 +114,9 @@ def synchClock(gl):
         assert cliDict['loggedIn'].wait(0.5)
     tk.logger.debug(f'clock synchronised at {time.time()}')
 
+def waitUntilT(dsec, sec0):
+    time.sleep(max(0, dsec - (time.time() - sec0)))
+
 def adminOnAuth(cli, gl, authst):
     "Admin actions after authentication go here"
 
@@ -125,8 +128,7 @@ def adminOnAuth(cli, gl, authst):
     synchClock(gl)
 
     t0 = time.time()
-
-    time.sleep(1)
+    waitUntilT(1, t0)
 
     # t = 1 sec
 
@@ -139,14 +141,19 @@ def adminOnAuth(cli, gl, authst):
             tk.logger.debug(f'admin kicks out user {u.name} at t={time.time()-t0}')
             execAdminCmd(gl, n, 'logoutUser')
 
-    time.sleep(2)
+    waitUntilT(4, t0)
 
-    # t = 3 sec
+    # t = 4 sec
 
+    allCliOk = True
     for n, cliDict in sorted(cliDicts.items(), key=lambda it: it[0]):
         if n == 'admin': continue
-        assert cliDict['success'].isSet(), f'user {n} did not pass the test'
-    gl.testCaseSuccess.set()
+        if not cliDict['success'].isSet():
+            allCliOk = False
+            tk.logger.error(f'user {n} did not pass the test')
+
+    if allCliOk:
+        gl.testCaseSuccess.set()
 
 def userOnAuth(cli, gl, authst):
     "Client actions after authentication go here"
@@ -167,7 +174,7 @@ def userOnAuth(cli, gl, authst):
         # as inactive
 
         flgFailed = False
-        while time.time() - t0 < 1.5:
+        while time.time() - t0 < 3:
             nxt = Event()
             def cb(m): nxt.set()
             cli.pushMessage({
@@ -187,35 +194,21 @@ def userOnAuth(cli, gl, authst):
         # explicitly invalidated by the admin interface, which should result
         # in failure to get a response to an echo after t > 1 sec.
 
-        # send messages until t ~= 0.75 sec to make sure our session lasts
-        # until t ~= 1.75 sec
         t0 = time.time()
-        while time.time() - t0 < 0.75:
+        while time.time() - t0 < 3:
             nxt = Event()
             def cb(m): nxt.set()
             cli.pushMessage({'type': 'echo', 'callback': cb}, send=True)
-            assert nxt.wait(0.2)
-            time.sleep(0.1)
 
-        tk.logger.debug(f'user {u.name} sent its last keep-alive message at t={time.time() - t0}')
+            if not nxt.wait(0.2):
+                t = time.time() - t0
+                if 0.5 < t and t < 1.5:
+                    cliDict['success'].set()
+                else:
+                    tk.logger.error(f"user {u.name} DID access the server at t={time.time()-t0}, although it shouldn't have")
+                break
 
-        # t ~= 0.75 sec
-
-        time.sleep(max(0, 1.5 - (time.time() - t0)))
-
-        tk.logger.debug(f'user {u.name} is about to hit Access Denied at t={time.time() - t0}')
-
-        # t ~= 1.5 sec
-
-        nxt = Event()
-        def cb(m): nxt.set()
-        cli.pushMessage({'type': 'echo', 'callback': cb}, send=True)
-
-        assert not nxt.wait(0.2), f"user {u.name} WAS ABLE to access the server at t={time.time()-t0}, although it shouldn't have"
-
-        tk.logger.debug(f'user {u.name}, as expected, could not access the server at t={time.time() - t0}')
-        cliDict['success'].set()
-
+            time.sleep(0.2)
     else: raise Exception(f'cannot process user {u.name}')
 
     #for m in cli.listenToMessages(timeout=10):

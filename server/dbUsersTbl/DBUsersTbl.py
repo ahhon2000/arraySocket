@@ -70,7 +70,7 @@ class DBUsersTbl(UsersTbl):
 
         # TODO write a test for manageExpiry(): 1) this class; 2) parent class
 
-        now = round(time.time())
+        now = time.time()
         q = self.q
 
         for sid in renew_sids:
