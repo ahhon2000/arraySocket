@@ -286,7 +286,6 @@ cases = [
         'UsersTblCls': UsersTbl,
         'maxInitSec': 0.1
     }),
-    # TODO uncomment all
     DictToObj({
         'NUsers': NUsersAllCases,
         'UsersTblCls': DBUsersTbl,

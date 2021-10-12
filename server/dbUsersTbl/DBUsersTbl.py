@@ -68,8 +68,6 @@ class DBUsersTbl(UsersTbl):
         Options renew_sids and rm_sids have immediate effect.
         """
 
-        # TODO write a test for manageExpiry(): 1) this class; 2) parent class
-
         now = time.time()
         q = self.q
 
