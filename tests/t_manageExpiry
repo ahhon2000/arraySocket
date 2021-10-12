@@ -209,6 +209,20 @@ def userOnAuth(cli, gl, authst):
                 break
 
             time.sleep(0.2)
+    elif u.index == 3:
+        # User 3 doesn't send any messages, so its session should be
+        # expired at t ~= 2 sec
+
+        t0 = time.time()
+        waitUntilT(3, t0)
+
+        # t = 3 sec
+        
+        nxt = Event()
+        def cb(m): nxt.set()
+        cli.pushMessage({'type': 'echo', 'callback': cb}, send=True)
+        assert not nxt.wait(0.2)
+        cliDict['success'].set()
     else: raise Exception(f'cannot process user {u.name}')
 
     #for m in cli.listenToMessages(timeout=10):
@@ -270,7 +284,7 @@ def doTest(case):
 
 cases = [
     DictToObj({
-        'NUsers': 3,  # TODO set to 10
+        'NUsers': 4,  # TODO set to 10
         'UsersTblCls': UsersTbl,
         'maxInitSec': 0.1
     }),
