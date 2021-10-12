@@ -8,7 +8,7 @@ from .Server import (
 
 class ClientMessageArray(
     BaseMessageArray.cloneClass(
-        set_MSG_TYPES = ('admin', 'auth',),
+        set_MSG_TYPES = ('admin', 'auth', 'echo'),
     )
 ):
     def __init__(self, srv, sid, ms):
@@ -95,8 +95,9 @@ class ClientMessageArray(
             'MSG_TYPES_SRV': srv.SMAClass.MSG_TYPES,
         })
 
-    def on_draw(self, m):
-        self.pushErrorMessage('unimplemented method')
+    def on_echo(self, m):
+        mrsp = dict(m)
+        self.pushMessage(mrsp, cbFromCliMsg=m, ignoreMissingCallback=True)
 
     def pushErrorMessage(self, descr, code=SRV_ERR_MSG_CODES.general_error):
         sma = self.serverMessageArray

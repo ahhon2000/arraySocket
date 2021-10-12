@@ -4,6 +4,7 @@ from handyPyUtil.classes import ClonableClass
 class AdminInterface(ClonableClass):
     USERS_TBL_CMDS = {
         'addAuthKey': {'args': ('user', 'authKey',)},
+        'rmAuthUser': {'args': ('sid',)},
         'rmAuthKey': {'args': ('user', 'authKey',)},
         'rmAllAuthKeys': {'args': ('user',)},
         'logoutUser': {'args': ('user',)},

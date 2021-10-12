@@ -21,21 +21,30 @@ from .spawnUsers import spawnUsers
 MYSQL_CNF = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
 
 def execAdminCmd(gl, n, cmd, cb=None, relogin=False):
+    tk = gl.tk
     cliDicts = gl.cliDicts
     admLoggedIn = cliDicts['admin']['loggedIn'].wait(timeout=0.2)
     assert admLoggedIn
 
     admCli = cliDicts['admin']['cli']
 
-    k = first(cliDicts[n]['user'].authKeys)
+    cliDict = cliDicts[n]
+    u = cliDict['user']
+    k = first(u.authKeys)
+
+    sid = None
+    if cmd in ('rmAuthUser',):
+        cli = cliDict['cli']
+        sid = cli.sock.get_sid()
 
     def onResponse(m):
         st = m.get('status', 63)
         assert st == 0, f"status={st}: {m.get('descr')}"
+
         if cb: cb()
         if relogin:
-            cliDicts[n]['loggedIn'].wait(timeout=0.2)
-            cli = cliDicts[n]['cli']
+            cliDict['loggedIn'].wait(timeout=0.2)
+            cli = cliDict['cli']
             cli.login()
 
     m = {
@@ -43,6 +52,7 @@ def execAdminCmd(gl, n, cmd, cb=None, relogin=False):
         'command': cmd,
         'user': n,
         'authKey': k,
+        'sid': sid,
         'callback': onResponse,
     }
 
@@ -57,7 +67,9 @@ def startServer(gl):
 
     UsersTblCls = case.UsersTblCls
 
-    usersTbl_kwarg = {}
+    usersTbl_kwarg = {
+        'idleSessionDurSec': 1,
+    }
     srv_kwarg = {
         'UsersTblCls': UsersTblCls,
         'usersTbl_kwarg': usersTbl_kwarg,
@@ -65,10 +77,11 @@ def startServer(gl):
     }
 
     if UsersTblCls is UsersTbl:
-        usersTbl_kwarg.update({
+        srv_kwarg.update({
             'authUsersInMem': True,
         })
     elif issubclass(UsersTblCls, DBUsersTbl):
+        usersTbl_kwarg.update({'secBtwExpiryCleanups': 1})
         srv_kwarg.update({
             'read_default_file': MYSQL_CNF,
         })
@@ -98,16 +111,83 @@ def adminOnAuth(cli, gl, authst):
     "Admin actions after authentication go here"
 
     assert cli.user == 'admin'
+    assert authst.status == 0
+
+    time.sleep(1)
+
+    # t = 1 sec
+
+    cliDicts = gl.cliDicts
+
+    for n, cliDict in cliDicts.items():
+        u = cliDict['user']
+        if u.index == 1:
+            execAdminCmd(gl, n, 'rmAuthUser')
+        elif u.index == 2:
+            execAdminCmd(gl, n, 'logoutUser')
+
+    time.sleep(1)
+
+    # t = 2 sec
+
+    for n, cliDict in sorted(cliDicts.items(), key=lambda it: it[0]):
+        if n == 'admin': continue
+        assert cliDict['success'].isSet(), f'user {n} did not pass the test'
+    gl.testCaseSuccess.set()
 
 def userOnAuth(cli, gl, authst):
     "Client actions after authentication go here"
 
     tk = gl.tk
     tk.logger.debug(f'entering userOnAuth()')
+    assert authst.status == 0
 
-    for m in cli.listenToMessages(timeout=10):
-        if m is None: break
-        tk.logger.debug(f'got message: {m}')  # TODO rm
+    n = cli.user
+    cliDict = gl.cliDicts[n]
+    u = cliDict['user']
+
+    t0 = time.time()
+    if u.index == 0:
+        # User 0 keeps sending messages, so should not be automatically removed
+        # as inactive
+
+        flgFailed = False
+        while time.time() - t0 < 1.5:
+            nxt = Event()
+            def cb(m): nxt.set()
+            cli.pushMessage({
+                'type': 'echo',
+                'callback': cb,
+            })
+            cli.sendMessages()
+            if not nxt.wait(0.2):
+                flgFailed = True
+                break
+            time.sleep(0.2)
+
+        if not flgFailed:
+            cliDict['success'].set()
+    elif u.index == 1:
+        # User 1 is intially authorised but at ~1 sec its session is invalidated
+        # by the admin interface, which should result in failure to get
+        # a response to an echo after t > 1 sec.
+
+        time.sleep(1.5)
+
+        nxt = Event()
+        def cb(m): nxt.set()
+        cli.pushMessage({
+            'type': 'echo',
+            'callback': cb,
+        })
+        if not nxt.wait(0.2):
+            cliDict['success'].set()
+    elif u.index == 2:
+        pass
+
+    #for m in cli.listenToMessages(timeout=10):
+    #    if m is None: break
+    #    tk.logger.debug(f'got message: {m}')  # TODO rm
 
 def startClients(gl, ns):
     class SMAClass_cli(client.ServerMessageArray):
@@ -149,16 +229,18 @@ def initCliSrv(gl):
 def doTest(case):
     with TestKitAS() as tk:
         cliDicts = spawnUsers(case.NUsers, genAuthKeys=True)
+        for cliDict in cliDicts.values(): cliDict['success'] = Event()
+
         gl = DictToObj({
             'case': case,
             'cliDicts': cliDicts,
             'tk': tk,
-            'success': Event(),
+            'testCaseSuccess': Event(),
         })
 
         initCliSrv(gl)
-        gl.success.wait(3 + gl.case.NUsers * 0.3)
-        assert gl.success.isSet()
+        gl.testCaseSuccess.wait(3 + gl.case.NUsers * 0.3)
+        assert gl.testCaseSuccess.isSet()
 
 cases = [
     DictToObj({

@@ -4,7 +4,7 @@ from .Server import SRV_ERR_MSG_CODES, ServerError, ServerErrorSrvMsg
 
 class ServerMessageArray(
     BaseMessageArray.cloneClass(
-        set_MSG_TYPES = ('error', 'auth', 'admin'),
+        set_MSG_TYPES = ('error', 'auth', 'admin', 'echo'),
     )
 ):
     def __init__(self, srv, sid, messages=()):

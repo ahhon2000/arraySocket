@@ -80,3 +80,5 @@ class ServerMessageArray(BaseMessageArray):
     def on_error(self, m):
         descr = m.get('descr', '')
         self.logger.error(f'server error: {descr}')
+
+    def on_echo(self, m): pass
