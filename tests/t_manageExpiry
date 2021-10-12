@@ -225,10 +225,6 @@ def userOnAuth(cli, gl, authst):
         cliDict['success'].set()
     else: raise Exception(f'cannot process user {u.name}')
 
-    #for m in cli.listenToMessages(timeout=10):
-    #    if m is None: break
-    #    tk.logger.debug(f'got message: {m}')  # TODO rm
-
 def startClients(gl, ns):
     class SMAClass_cli(client.ServerMessageArray):
         def on_auth(self, m):
@@ -282,18 +278,20 @@ def doTest(case):
         gl.testCaseSuccess.wait(3 + gl.case.NUsers * 0.5)
         assert gl.testCaseSuccess.isSet()
 
+NUsersAllCases = 4
+
 cases = [
     DictToObj({
-        'NUsers': 4,  # TODO set to 10
+        'NUsers': NUsersAllCases,
         'UsersTblCls': UsersTbl,
         'maxInitSec': 0.1
     }),
     # TODO uncomment all
-    #DictToObj({
-    #    'NUsers': 10,
-    #    'UsersTblCls': DBUsersTbl,
-    #    'maxInitSec': 0.3
-    #}),
+    DictToObj({
+        'NUsers': NUsersAllCases,
+        'UsersTblCls': DBUsersTbl,
+        'maxInitSec': 0.3
+    }),
 ]
 
 for case in cases:
