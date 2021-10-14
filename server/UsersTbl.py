@@ -53,7 +53,7 @@ class UsersTbl:
         with concur:
             u = concur.staticUsers.get(name)
             if not u:
-                u = self.lookupUser(name)
+                u = self.lookupUser(name=name)
 
             if self.authEveryone:
                 s = S(0, 'success', u)
@@ -102,12 +102,12 @@ class UsersTbl:
                 for sid in sidsToRm:
                     aus.pop(sid, None)
 
-    def lookupUser(self, name):
+    def lookupUser(self, name=None):
         "Override this method for custom user lookups. Should return an ASUser"
 
         return None
 
-    def saveAuthUser(self, sid, u):
+    def saveAuthUser(self, sid=None, user=None):
         """Save a sid-user association to an internal table (or elsewhere)
 
         This method is called once the user has been successfully authenticated
@@ -120,6 +120,7 @@ class UsersTbl:
         override this method.
         """
 
+        u = user
         if self.authUsersInMem:
             concur = self.concur
             with concur:
@@ -127,7 +128,7 @@ class UsersTbl:
 
         self.manageExpiry(renew_sids=(sid,))
 
-    def lookupAuthUser(self, sid, renewExpiryIfFound=False):
+    def lookupAuthUser(self, sid=None, renewExpiryIfFound=False):
         """Search the (internal) table for an authenticated user by their sid
 
         Override if a different mechanism of storing sid-user pairs is used.
@@ -144,7 +145,7 @@ class UsersTbl:
 
         return u
 
-    def rmAuthUser(self, sid):
+    def rmAuthUser(self, sid=None):
         """Remove an authenticated user from the (internal) sid-user table
 
         Override if a different mechanism of storing sid-user pairs is used.
@@ -155,12 +156,13 @@ class UsersTbl:
             concur.authUsers.pop(sid, None)
         self.manageExpiry(rm_sids=(sid,))
 
-    def logoutUser(self, name):
+    def logoutUser(self, username=None):
         """Forget all sid's associated with a given user
 
         Override if a different mechanism of storing sid-user pairs is used.
         """
 
+        name = username
         concur = self.concur
         with concur:
             aus = concur.authUsers
@@ -174,13 +176,14 @@ class UsersTbl:
 
             self.manageExpiry(rm_sids=rm_sids)
 
-    def addAuthKey(self, name, authKey, isAdmin=False):
-        """Add authKey to the keys of a users
+    def addAuthKey(self, username=None, authKey=None, isAdmin=False):
+        """Add authKey to the keys of a user
 
-        If name doesn't match any user a new one will be added with the given
-        value of the isAdmin flag.
+        If username doesn't match any user a new user will be added with the
+        given value of the isAdmin flag.
         """
 
+        name = username
         if not name: raise Exception(f'no user name given')
         if not authKey: raise Exception(f'no authKey given')
 
@@ -195,10 +198,11 @@ class UsersTbl:
 
             u.authKeys.add(authKey)
 
-    def rmAuthKey(self, name, authKey):
+    def rmAuthKey(self, username=None, authKey=None):
         """Remove authKey from a user's keys
         """
 
+        name = username
         concur = self.concur
         with concur:
             sus = concur.staticUsers
@@ -206,10 +210,11 @@ class UsersTbl:
             if u:
                 u.authKeys.discard(authKey)
 
-    def rmAllAuthKeys(self, name):
+    def rmAllAuthKeys(self, username=None):
         """Remove all keys a user currently has
         """
 
+        name = username
         concur = self.concur
         with concur:
             sus = concur.staticUsers

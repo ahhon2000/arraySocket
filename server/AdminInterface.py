@@ -3,11 +3,11 @@ from handyPyUtil.classes import ClonableClass
 
 class AdminInterface(ClonableClass):
     USERS_TBL_CMDS = {
-        'addAuthKey': {'args': ('user', 'authKey',)},
+        'addAuthKey': {'args': ('username', 'authKey',)},
         'rmAuthUser': {'args': ('sid',)},
-        'rmAuthKey': {'args': ('user', 'authKey',)},
-        'rmAllAuthKeys': {'args': ('user',)},
-        'logoutUser': {'args': ('user',)},
+        'rmAuthKey': {'args': ('username', 'authKey',)},
+        'rmAllAuthKeys': {'args': ('username',)},
+        'logoutUser': {'args': ('username',)},
     }
 
     def __init__(self, srv):
@@ -23,17 +23,17 @@ class AdminInterface(ClonableClass):
 
             if cmd in self.USERS_TBL_CMDS:
                 argNames = self.USERS_TBL_CMDS[cmd]['args']
-                arg = []
+                kwarg = {}
                 for an in argNames:
                     av = m.get(an)
-                    if an is None: raise Exception(f'missing argument "{an}"')
-                    arg.append(av)
+                    if av is None: raise Exception(f'missing argument "{an}"')
+                    kwarg[an] = av
 
                 ut = srv.usersTbl
                 h = getattr(ut, cmd, None)
                 if not h: raise Exception(f'unimplemented admin command: {cmd}')
 
-                h(*arg)
+                h(**kwarg)
             else:
                 h = getattr(self, f'cmd_{cmd}', None)
                 if not h: raise Exception(f'unsupported admin command: {cmd}')

@@ -50,7 +50,7 @@ def execAdminCmd(gl, n, cmd, cb=None, relogin=False):
     m = {
         'type': 'admin',
         'command': cmd,
-        'user': n,
+        'username': n,
         'authKey': k,
         'sid': sid,
         'callback': onResponse,

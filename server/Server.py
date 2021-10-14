@@ -131,8 +131,10 @@ class Server(BaseClientServer):
         self.logger.debug(f'initialised the users table')
 
         if ik.adminAuthKey:
-            ik.usersTbl.rmAllAuthKeys('admin')
-            ik.usersTbl.addAuthKey('admin', ik.adminAuthKey, isAdmin=True)
+            ik.usersTbl.rmAllAuthKeys(username='admin')
+            ik.usersTbl.addAuthKey(
+                username='admin', authKey=ik.adminAuthKey, isAdmin=True
+            )
             self.logger.debug(f'added a key for user "admin"')
 
     def _setupSocketHandlers(self):
@@ -158,7 +160,7 @@ class Server(BaseClientServer):
 
         @sock.event
         def disconnect(sid):
-            self.usersTbl.rmAuthUser(sid)
+            self.usersTbl.rmAuthUser(sid=sid)
             self.logger.info(f'user with sid={sid} disconnected')
 
     def run(self, method="eventlet", **kwarg):

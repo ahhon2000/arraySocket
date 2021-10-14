@@ -98,14 +98,15 @@ class DBUsersTbl(UsersTbl):
             """
 
 
-    def lookupUser(self, name):
+    def lookupUser(self, name=None):
         q = self.q
         tru = self.TRUser._fromColVal(self, 'name', name)
 
         if tru: return tru._toASUser()
         return None
 
-    def saveAuthUser(self, sid, u):
+    def saveAuthUser(self, sid=None, user=None):
+        u = user
         q = self.q
         tru = self.TRUser._fromColVal(self, 'name', u.name)
         if not tru: raise Exception(f'user "{u.name}" does not exist')
@@ -124,7 +125,7 @@ class DBUsersTbl(UsersTbl):
 
         self.manageExpiry(renew_sids=(sid,))
 
-    def lookupAuthUser(self, sid, renewExpiryIfFound=False):
+    def lookupAuthUser(self, sid=None, renewExpiryIfFound=False):
         q = self.q
         trus = q(aslist=True, sid=sid, bindObject=self) / self.TRUser / f"""
             SELECT u.*
@@ -146,7 +147,7 @@ class DBUsersTbl(UsersTbl):
         u = trus[0]._toASUser()
         return u
 
-    def rmAuthUser(self, sid):
+    def rmAuthUser(self, sid=None):
         q = self.q
         q(sid=sid) / f"""
             DELETE FROM `{self.TRAuthUser._tableName}`
@@ -155,7 +156,8 @@ class DBUsersTbl(UsersTbl):
 
         self.manageExpiry()
 
-    def logoutUser(self, name):
+    def logoutUser(self, username=None):
+        name = username
         q = self.q
         q(name=name) / f"""
             DELETE FROM `{self.TRAuthUser._tableName}`
@@ -168,7 +170,8 @@ class DBUsersTbl(UsersTbl):
 
         self.manageExpiry()
 
-    def addAuthKey(self, name, authKey, isAdmin=False):
+    def addAuthKey(self, username=None, authKey=None, isAdmin=False):
+        name = username
         q = self.q
 
         tru = self.TRUser._fromColVal(self, 'name', name)
@@ -186,7 +189,8 @@ class DBUsersTbl(UsersTbl):
                 VALUES (%(uid)s, %(authKey)s)
             """
 
-    def rmAuthKey(self, name, authKey):
+    def rmAuthKey(self, username=None, authKey=None):
+        name = username
         q = self.q
         q(name=name, authKey=authKey) / f"""
             DELETE FROM `{self.TRAuthKey._tableName}`
@@ -199,7 +203,8 @@ class DBUsersTbl(UsersTbl):
                 authKey = %(authKey)s
         """
 
-    def rmAllAuthKeys(self, name):
+    def rmAllAuthKeys(self, username=None):
+        name = username
         q = self.q
         q(name=name) / f"""
             DELETE FROM `{self.TRAuthKey._tableName}`

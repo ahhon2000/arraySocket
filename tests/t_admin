@@ -37,7 +37,7 @@ def execAdminCmd(gl, n, cmd, cb=None, relogin=True):
     m = {
         'type': 'admin',
         'command': cmd,
-        'user': n,
+        'username': n,
         'authKey': k,
         'callback': onResponse,
     }
@@ -197,7 +197,9 @@ def doTest(case):
 
                         ak = next(iter(cliDicts['admin']['user'].authKeys))
                         tk.logger.debug(f"adding the admin's key: {ak}")
-                        self.addAuthKey('admin', ak, isAdmin=True)
+                        self.addAuthKey(
+                            username='admin', authKey=ak, isAdmin=True
+                        )
 
                         tk.logger.info(f"DBUsersTbl initialised!")
                     except Exception as e:

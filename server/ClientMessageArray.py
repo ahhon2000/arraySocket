@@ -21,7 +21,9 @@ class ClientMessageArray(
         self.serverMessageArray = None
         self._newServerMessageArray()
 
-        self.user = u= srv.usersTbl.lookupAuthUser(sid, renewExpiryIfFound=True)
+        self.user = u = srv.usersTbl.lookupAuthUser(
+            sid=sid, renewExpiryIfFound=True
+        )
 
         self.isAuthenticated = True if u else False
 
@@ -85,7 +87,7 @@ class ClientMessageArray(
         self.user = s.user
         if s.status == 0:
             self.isAuthenticated = True
-            srv.usersTbl.saveAuthUser(self.sid, s.user)
+            srv.usersTbl.saveAuthUser(sid=self.sid, user=s.user)
 
         self.pushMessage({
             'type': 'auth',
