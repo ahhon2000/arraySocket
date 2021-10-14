@@ -176,11 +176,18 @@ class UsersTbl:
 
             self.manageExpiry(rm_sids=rm_sids)
 
-    def addAuthKey(self, username=None, authKey=None, isAdmin=False):
+    def addAuthKey(self, username=None, authKey=None, isAdmin=False,
+        expiresInSec = 0,
+    ):
         """Add authKey to the keys of a user
 
         If username doesn't match any user a new user will be added with the
         given value of the isAdmin flag.
+
+        The argument expiresInSec has no effect in this method, however this
+        feature may be implemented in subclasses.
+
+        If expiresInSec is 0 the key never expires.
         """
 
         name = username

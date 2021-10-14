@@ -170,7 +170,14 @@ class DBUsersTbl(UsersTbl):
 
         self.manageExpiry()
 
-    def addAuthKey(self, username=None, authKey=None, isAdmin=False):
+    def addAuthKey(self, username=None, authKey=None, isAdmin=False,
+        expiresInSec = 60,
+    ):
+        """
+
+        If expiresInSec is 0 the key never expires
+        """
+
         name = username
         q = self.q
 
@@ -180,14 +187,21 @@ class DBUsersTbl(UsersTbl):
             tru._save()
         u = tru._toASUser()
 
+        now = time.time()
         if authKey not in u.authKeys:
             uid = tru.id
             if not uid: raise Exception(f'uid undefined')
-            q(uid=uid, authKey=authKey) / f"""
+            expirySec = now + expiresInSec if expiresInSec != 0 else 0
+            q(uid=uid, authKey=authKey, expirySec=round(expirySec)) / f"""
                 INSERT INTO `{self.TRAuthKey._tableName}`
-                (user, authKey)
-                VALUES (%(uid)s, %(authKey)s)
+                (user, authKey, expirySec)
+                VALUES (%(uid)s, %(authKey)s, %(expirySec)s)
             """
+
+        q(now=round(now)) / f"""
+            DELETE FROM `{self.TRAuthKey._tableName}`
+            WHERE expirySec and expirySec <= %(now)s
+        """
 
     def rmAuthKey(self, username=None, authKey=None):
         name = username

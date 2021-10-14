@@ -3,7 +3,7 @@ from handyPyUtil.classes import ClonableClass
 
 class AdminInterface(ClonableClass):
     USERS_TBL_CMDS = {
-        'addAuthKey': {'args': ('username', 'authKey',)},
+        'addAuthKey': {'args': ('username', 'authKey', 'expiresInSec')},
         'rmAuthUser': {'args': ('sid',)},
         'rmAuthKey': {'args': ('username', 'authKey',)},
         'rmAllAuthKeys': {'args': ('username',)},

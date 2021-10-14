@@ -62,7 +62,8 @@ def doTest():
         if srv_kwarg.get('UsersTblCls') is DBUsersTbl:
             adminAuthKey = 'mysecret154'
             srv.usersTbl.addAuthKey(
-                username='admin', authKey=adminAuthKey, isAdmin=True
+                username='admin', authKey=adminAuthKey, isAdmin=True,
+                expiresInSec = 0,
             )
 
         assert isinstance(srv.usersTbl, DBUsersTbl)

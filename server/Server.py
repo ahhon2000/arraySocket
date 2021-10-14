@@ -133,7 +133,8 @@ class Server(BaseClientServer):
         if ik.adminAuthKey:
             ik.usersTbl.rmAllAuthKeys(username='admin')
             ik.usersTbl.addAuthKey(
-                username='admin', authKey=ik.adminAuthKey, isAdmin=True
+                username='admin', authKey=ik.adminAuthKey, isAdmin=True,
+                expiresInSec = 0,
             )
             self.logger.debug(f'added a key for user "admin"')
 

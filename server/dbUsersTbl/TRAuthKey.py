@@ -13,6 +13,9 @@ class TRAuthKey(TableRow):
         'authKey': {
             DBTYPES.mysql: "VARCHAR(64) NOT NULL COLLATE utf8_bin",
         },
+        'expirySec': {
+            DBTYPES.mysql: "BIGINT NOT NULL DEFAULT 0",
+        },
     }
 
     @classmethod

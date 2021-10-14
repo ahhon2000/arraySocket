@@ -55,6 +55,8 @@ def execAdminCmd(gl, n, cmd, cb=None, relogin=False):
         'sid': sid,
         'callback': onResponse,
     }
+    if cmd == 'addAuthKey':
+        m['expiresInSec'] = 0
 
     admCli.pushMessage(m)
     admCli.sendMessages()

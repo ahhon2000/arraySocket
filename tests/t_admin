@@ -41,6 +41,8 @@ def execAdminCmd(gl, n, cmd, cb=None, relogin=True):
         'authKey': k,
         'callback': onResponse,
     }
+    if cmd == 'addAuthKey':
+        m['expiresInSec'] = 0
 
     admCli = cliDicts['admin']['cli']
     admCli.pushMessage(m)
@@ -198,7 +200,8 @@ def doTest(case):
                         ak = next(iter(cliDicts['admin']['user'].authKeys))
                         tk.logger.debug(f"adding the admin's key: {ak}")
                         self.addAuthKey(
-                            username='admin', authKey=ak, isAdmin=True
+                            username='admin', authKey=ak, isAdmin=True,
+                            expiresInSec = 0,
                         )
 
                         tk.logger.info(f"DBUsersTbl initialised!")
