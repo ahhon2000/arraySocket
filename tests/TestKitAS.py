@@ -1,9 +1,12 @@
+import sys, os
+from pathlib import Path
 import threading
 from threading import Thread
 from more_itertools import first
 
 #from handyPyUtil.tests import TestKit
 from handyPyUtil.db.tests import TestKitDB
+from handyPyUtil.db import Database_mysql
 
 from ..server import Server
 from ..client import Client
@@ -12,6 +15,7 @@ from .. import ASUser
 
 DFLT_TEST_ADDR = f"127.0.0.1"
 DFLT_TEST_PORT = 5492
+MYSQL_CNF = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
 
 #class TestKitAS(TestKit):
 class TestKitAS(TestKitDB):
@@ -32,6 +36,8 @@ class TestKitAS(TestKitDB):
         self.activeClients = []  # each element is a tuple (thread, client)
 
         super().__init__(lock=lock, **kwarg)
+
+        self.connect(DBCls=Database_mysql)
 
     def startServer(self,
         addr = None, port = None,

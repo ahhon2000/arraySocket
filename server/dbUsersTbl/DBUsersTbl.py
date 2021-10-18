@@ -198,6 +198,7 @@ class DBUsersTbl(UsersTbl):
                 VALUES (%(uid)s, %(authKey)s, %(expirySec)s)
             """
 
+        self.logger.debug(f'cleaning up keys')
         q(now=round(now)) / f"""
             DELETE FROM `{self.TRAuthKey._tableName}`
             WHERE expirySec and expirySec <= %(now)s

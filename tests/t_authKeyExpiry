@@ -5,7 +5,7 @@ except: O=open(R(next(filter(E,map(L,F.parents))))); exec(O.read()); O.close()
 
 import sys, os
 import time
-from threading import Thread, Event
+from threading import Thread, Event, Timer
 from pathlib import Path
 from more_itertools import first
 
@@ -20,7 +20,9 @@ from .spawnUsers import spawnUsers
 
 MYSQL_CNF = Path(sys.argv[0]).absolute().parent / 'mysql.cnf'
 
-def execAdminCmd(gl, n, cmd, cb=None, relogin=False):
+def execAdminCmd(gl, n, cmd, cb=None, relogin=False,
+    expiresInSec = 0,  # for the `addAuthKey' command
+):
     tk = gl.tk
     cliDicts = gl.cliDicts
     admLoggedIn = cliDicts['admin']['loggedIn'].wait(timeout=0.2)
@@ -56,7 +58,7 @@ def execAdminCmd(gl, n, cmd, cb=None, relogin=False):
         'callback': onResponse,
     }
     if cmd == 'addAuthKey':
-        m['expiresInSec'] = 0
+        m['expiresInSec'] = expiresInSec
 
     admCli.pushMessage(m)
     admCli.sendMessages()
@@ -97,13 +99,11 @@ def registerUsers(gl):
     cliDicts['admin']['loggedIn'].wait(0.2)
 
     registered = []
-    for n, cliDict in cliDicts.items():
-        if n == 'admin': continue
-
+    # add user0's key
+    for n in ('user0',):
         r = Event()
         def cb(r=r): r.set()
-        execAdminCmd(gl, n, "addAuthKey", cb=cb)
-
+        execAdminCmd(gl, n, "addAuthKey", expiresInSec=1, cb=cb)
         registered.append(r)
 
     for r in registered:
@@ -114,12 +114,32 @@ def registerUsers(gl):
 def synchClock(gl):
     tk = gl.tk
     cliDicts = gl.cliDicts
-    for n, cliDict in cliDicts.items():
-        assert cliDict['loggedIn'].wait(0.5)
+    for n in ('admin', 'user0'):
+        cliDict = cliDicts[n]
+        assert cliDict['loggedIn'].wait(0.5), f'user {n} has not logged in'
     tk.logger.debug(f'clock synchronised at {time.time()}')
 
 def waitUntilT(dsec, sec0):
     time.sleep(max(0, dsec - (time.time() - sec0)))
+
+def echoWorks(cli):
+    "Return True iff the echo client command receives a response"
+
+    rspReceived = Event()
+    def cb(m):  rspReceived.set()
+    cli.pushMessage({
+        'type': 'echo',
+        'callback': cb,
+    }, send=True)
+
+    return rspReceived.wait(0.2)
+
+def loginWorks(gl, cli):
+    tk = gl.tk
+    Timer(0.1, cli.login).start()
+    m = next(cli.listenToMessages(timeout=0.2))
+    tk.logger.debug(f'loginWorks() (user {cli.user}) received message: {m}')
+    return bool(m and m['type'] == 'auth' and m['status'] == 0)
 
 def adminOnAuth(cli, gl, authst):
     "Admin actions after authentication go here"
@@ -132,18 +152,13 @@ def adminOnAuth(cli, gl, authst):
     synchClock(gl)
 
     t0 = time.time()
-    waitUntilT(1, t0)
 
-    # t = 1 sec
+    waitUntilT(2, t0)
 
-    for n, cliDict in cliDicts.items():
-        u = cliDict['user']
-        if u.index == 1:
-            tk.logger.debug(f'admin kicks out user {u.name} at t={time.time()-t0}')
-            execAdminCmd(gl, n, 'rmAuthUser')
-        elif u.index == 2:
-            tk.logger.debug(f'admin kicks out user {u.name} at t={time.time()-t0}')
-            execAdminCmd(gl, n, 'logoutUser')
+    # t = 2 sec
+
+    # add user1's key
+    execAdminCmd(gl, 'user1', "addAuthKey", expiresInSec=60)
 
     waitUntilT(4, t0)
 
@@ -160,74 +175,52 @@ def adminOnAuth(cli, gl, authst):
         gl.testCaseSuccess.set()
 
 def userOnAuth(cli, gl, authst):
-    "Client actions after authentication go here"
+    "Client actions after the FIRST authentication go here"
+
+    usedFlag = 'alreadyUsed_' + cli.user
+    if hasattr(userOnAuth, usedFlag): return
+    else:
+        setattr(userOnAuth, usedFlag, True)
 
     tk = gl.tk
     tk.logger.debug(f'entering userOnAuth()')
-    assert authst.status == 0
 
     synchClock(gl)
 
     n = cli.user
     cliDict = gl.cliDicts[n]
     u = cliDict['user']
+    cli = cliDict['cli']
 
     t0 = time.time()
     if u.index == 0:
-        # User 0 keeps sending messages, so should not be automatically removed
-        # as inactive
+        # 1. make sure user0 is connected at t = 0
+        assert authst.status == 0
+        assert echoWorks(cli)
 
-        flgFailed = False
-        while time.time() - t0 < 3:
-            nxt = Event()
-            def cb(m): nxt.set()
-            cli.pushMessage({
-                'type': 'echo',
-                'callback': cb,
-            }, send=True)
-            if not nxt.wait(0.2):
-                flgFailed = True
-                break
-            time.sleep(0.2)
-
-        if not flgFailed:
-            cliDict['success'].set()
-    elif u.index in (1, 2):
-        # Users 1, 2 are intially authorised and keep their sessions alive by
-        # sending messages. At ~1 sec their sessions are
-        # explicitly invalidated by the admin interface, which should result
-        # in failure to get a response to an echo after t > 1 sec.
-
-        t0 = time.time()
-        while time.time() - t0 < 3:
-            nxt = Event()
-            def cb(m): nxt.set()
-            cli.pushMessage({'type': 'echo', 'callback': cb}, send=True)
-
-            if not nxt.wait(0.2):
-                t = time.time() - t0
-                if 0.5 < t and t < 1.5:
-                    cliDict['success'].set()
-                else:
-                    tk.logger.error(f"user {u.name} DID access the server at t={time.time()-t0}, although it shouldn't have")
-                break
-
-            time.sleep(0.2)
-    elif u.index == 3:
-        # User 3 doesn't send any messages, so its session should be
-        # expired at t ~= 2 sec
-
-        t0 = time.time()
         waitUntilT(3, t0)
 
         # t = 3 sec
-        
-        nxt = Event()
-        def cb(m): nxt.set()
-        cli.pushMessage({'type': 'echo', 'callback': cb}, send=True)
-        assert not nxt.wait(0.2)
-        cliDict['success'].set()
+
+        # 2. make sure user0 can't connect at t = 3 (admin cleaned key at t=2)
+        assert not loginWorks(gl, cli)
+    elif u.index == 1:
+        # 1. make sure user1 can't connect at t = 0
+        assert authst.status != 0
+        assert not loginWorks(gl, cli)
+        tk.logger.debug(f'user1 cannot connect at t~=0 (as expected)')
+
+        waitUntilT(3, t0)
+
+        # t = 3 sec
+
+        # 2. make sure user1 can connect at t = 3 (admin added key at t=2)
+        assert loginWorks(gl, cli)
+        tk.logger.debug(f'user1 CAN connect at t~=3 (as expected)')
     else: raise Exception(f'cannot process user {u.name}')
+
+    tk.logger.debug(f'setting the success event for user {u.name}')
+    cliDict['success'].set()
 
 def startClients(gl, ns):
     class SMAClass_cli(client.ServerMessageArray):
@@ -279,17 +272,12 @@ def doTest(case):
         })
 
         initCliSrv(gl)
-        gl.testCaseSuccess.wait(3 + gl.case.NUsers * 0.5)
+        gl.testCaseSuccess.wait(4 + gl.case.NUsers * 0.5)
         assert gl.testCaseSuccess.isSet()
 
-NUsersAllCases = 4
+NUsersAllCases = 2
 
 cases = [
-    DictToObj({
-        'NUsers': NUsersAllCases,
-        'UsersTblCls': UsersTbl,
-        'maxInitSec': 0.1
-    }),
     DictToObj({
         'NUsers': NUsersAllCases,
         'UsersTblCls': DBUsersTbl,
